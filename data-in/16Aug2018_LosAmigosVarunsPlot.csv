@@ -1,0 +1,325 @@
+﻿tag,x,y,stage,srcsheet
+78,53.39,45.03,adult,2095 LA DATA
+91,31.54,86.17,adult,2108 LA DATA
+128,154.83,157.47,adult,2145 LA DATA
+135,52,195.5,adult,2016LA_Mapped_Euterpe
+142,59,196,adult,2016LA_Mapped_Euterpe
+147,67,194,adult,2016LA_Mapped_Euterpe
+241,75,164,adult,2149 LA DATA
+308,104,116,adult,2016LA_Mapped_Euterpe
+324,94,128,adult,2016LA_Mapped_Euterpe
+340,91,150,adult,2016LA_Mapped_Euterpe
+403,94,198,adult,2016LA_Mapped_Euterpe
+404,95,197,adult,2016LA_Mapped_Euterpe
+433,124.5,119,adult,2016LA_Mapped_Euterpe
+556,115,193,adult,2016LA_Mapped_Euterpe
+558,114,195,adult,2016LA_Mapped_Euterpe
+591,138,130.5,adult,2016LA_Mapped_Euterpe
+598,142.5,129,adult,2016LA_Mapped_Euterpe
+604,149.5,132.8,adult,2016LA_Mapped_Euterpe
+646,134,173.5,adult,2016LA_Mapped_Euterpe
+833,143.6,68.05,adult,2016LA_Mapped_Euterpe
+2209,133.2,41,adult,2016LA_Mapped_Euterpe
+2303,154.1,69.05,adult,2016LA_Mapped_Euterpe
+2622,35.3,126.83,adult,2016LA_Mapped_Euterpe
+2770,167.8,24.5,adult,2016LA_Mapped_Euterpe
+2822,193.5,54,adult,2016LA_Mapped_Euterpe
+3117,73,17.2,adult,2016LA_Mapped_Euterpe
+3147,77.3,24.5,adult,2016LA_Mapped_Euterpe
+3173,110,13,adult,2016LA_Mapped_Euterpe
+3214,176.4,173.5,adult,2016LA_Mapped_Euterpe
+3292,169.5,194,adult,2016LA_Mapped_Euterpe
+3293,169.4,195.1,adult,2016LA_Mapped_Euterpe
+3296,162,195.9,adult,2016LA_Mapped_Euterpe
+3336,42,191,adult,2016LA_Mapped_Euterpe
+3346,30.5,195.2,adult,2016LA_Mapped_Euterpe
+3348,25.3,199.7,adult,2016LA_Mapped_Euterpe
+3540,0.9,99.6,adult,2016LA_Mapped_Euterpe
+3609,24,63.7,adult,2016LA_Mapped_Euterpe
+3935,162.5,59.8,adult,2016LA_Mapped_Euterpe
+3945,28,185,adult,2016LA_Mapped_Euterpe
+4000,197.5,191,adult,2016LA_Mapped_Euterpe
+4131,120,187,adult,2016LA_Mapped_Euterpe
+4133,144,189,adult,2016LA_Mapped_Euterpe
+V8567,80.8,139.4,adult,2016LA_Mapped_Euterpe
+V6805,126.6,123.15,adult,2016LA_Mapped_Euterpe
+240,76.5,165,adult,2016LA_Mapped_Euterpe
+520,111.1,174,adult,2016LA_Mapped_Euterpe
+666,150,189,adult,2016LA_Mapped_Euterpe
+2705,129.3,22.7,adult,2016LA_Mapped_Euterpe
+3659,14.2,28.5,adult,2016LA_Mapped_Euterpe
+24,53.55,134.99,sapling,2040 LA DATA
+25,51.83,133.94,sapling,2041 LA DATA
+30,59.03,105.27,sapling,2046 LA DATA
+32,60.1,100.2,sapling,2048 LA DATA
+38,144.56,107.64,sapling,2054 LA DATA
+41,131.66,124.99,sapling,2057 LA DATA
+47,147.17,122.64,sapling,2063 LA DATA
+51,150.28,58.4,sapling,2067 LA DATA
+52,160.05,49.03,sapling,2068 LA DATA
+53,156.97,47.56,sapling,2069 LA DATA
+57,147.26,23.89,sapling,2073 LA DATA
+62,137.81,27.58,sapling,2079 LA DATA
+63,137.81,27.58,sapling,2080 LA DATA
+68,119.29,32.25,sapling,2085 LA DATA
+69,122.5,122.8,sapling,2086 LA DATA
+74,97.56,48.5,sapling,2091 LA DATA
+75,94.18,46.82,sapling,2092 LA DATA
+76,55.83,28.61,sapling,2093 LA DATA
+77,59.21,36.67,sapling,2094 LA DATA
+79,57.59,30.99,sapling,2096 LA DATA
+81,38.59,33.01,sapling,2098 LA DATA
+82,45.01,32.38,sapling,2099 LA DATA
+84,43.54,67.32,sapling,2101 LA DATA
+93,25.67,111.83,sapling,2110 LA DATA
+97,27.67,101.82,sapling,2114 LA DATA
+102,27.69,145.62,sapling,2119 LA DATA
+103,28.51,131.55,sapling,2120 LA DATA
+107,37.73,173.7,sapling,2124 LA DATA
+109,56.65,159.88,sapling,2126 LA DATA
+114,83.57,162.56,sapling,2131 LA DATA
+116,86.85,172.37,sapling,2133 LA DATA
+120,114.26,154.82,sapling,2137 LA DATA
+121,102.8,153.78,sapling,2138 LA DATA
+122,106.28,152.61,sapling,2139 LA DATA
+124,102.42,161.11,sapling,2141 LA DATA
+126,140.54,145.77,sapling,2143 LA DATA
+127,134.01,152.34,sapling,2144 LA DATA
+129,153.73,161.63,sapling,2146 LA DATA
+130,157.62,160.45,sapling,2147 LA DATA
+131,156,159.68,sapling,2148 LA DATA
+V5974,127.8,112.5,sapling,2016LA_Mapped_Euterpe
+01R,166.12,137.95,sapling,2151 LA DATA
+02R,167.76,100.22,sapling,2152 LA DATA
+08R,159.36,70.62,sapling,2158 LA DATA
+09R,165.47,65.75,sapling,2159 LA DATA
+15R,132.68,47.65,sapling,2165 LA DATA
+18R,124.49,30.43,sapling,2168 LA DATA
+19R,116.98,28.21,sapling,2169 LA DATA
+21R,117.62,32.34,sapling,2171 LA DATA
+24R,57.5,40.6,sapling,2174 LA DATA
+27R,32.51,71.85,sapling,2177 LA DATA
+28R,29.99,73.88,sapling,2178 LA DATA
+29R,33.53,75.83,sapling,2179 LA DATA
+30R,42.35,85.73,sapling,2180 LA DATA
+38R,37.37,139.07,sapling,2188 LA DATA
+45R,97.01,172.38,sapling,2195 LA DATA
+61R,179.21,168.2,sapling,2211 LA DATA
+R100,127.8,56.4,sapling,2016LA_ExhaustiveSearch_Euterpe
+R1047,84,112.1,sapling,2016LA_Mapped_Euterpe
+R1093,148.8,112.9,sapling,2016LA_Mapped_Euterpe
+R14,134.8,62.33,sapling,2016LA_ExhaustiveSearch_Euterpe
+R1572,62.5,132.6,sapling,2016LA_Mapped_Euterpe
+R18,94.9,74.9,sapling,2016LA_ExhaustiveSearch_Euterpe
+R27,117.35,96.2,sapling,2016LA_ExhaustiveSearch_Euterpe
+R28,64.6,82.68,sapling,2016LA_ExhaustiveSearch_Euterpe
+R314,71.7,59,sapling,2016LA_Mapped_Euterpe
+R45a,71.9,91.3,sapling,2016LA_ExhaustiveSearch_Euterpe
+R518,111.5,59,sapling,2016LA_Mapped_Euterpe
+R57,58.6,95.55,sapling,2016LA_ExhaustiveSearch_Euterpe
+R6,57.7,77.25,sapling,2016LA_ExhaustiveSearch_Euterpe
+R62,125.8,56.3,sapling,2016LA_ExhaustiveSearch_Euterpe
+R63,132.4,64,sapling,2016LA_ExhaustiveSearch_Euterpe
+R641,118,96.3,sapling,2016LA_Mapped_Euterpe
+R77,50.2,99.2,sapling,2016LA_ExhaustiveSearch_Euterpe
+R8,80.95,87.15,sapling,2016LA_ExhaustiveSearch_Euterpe
+R84,118.9,78.25,sapling,2016LA_ExhaustiveSearch_Euterpe
+V1252,107.3,55.1,sapling,2016LA_Mapped_Euterpe
+V1317,107.1,70.8,sapling,2016LA_Mapped_Euterpe
+V1587,112.8,64,sapling,2016LA_Mapped_Euterpe
+V2022,138,52.6,sapling,2016LA_Mapped_Euterpe
+V2033,137.6,54.6,sapling,2016LA_Mapped_Euterpe
+V2970,103.9,76.7,sapling,2016LA_Mapped_Euterpe
+V3458,118.2,99.7,sapling,2016LA_Mapped_Euterpe
+V3757,85.5,84.2,sapling,2016LA_Mapped_Euterpe
+V4753,60.5,115.97,sapling,2016LA_Mapped_Euterpe
+V5695,108.3,103.95,sapling,2016LA_Mapped_Euterpe
+V6153,100.2,101.57,sapling,2016LA_Mapped_Euterpe
+V6207,102.3,115.2,sapling,2016LA_Mapped_Euterpe
+V6680,135.8,103.9,sapling,2016LA_Mapped_Euterpe
+V7364,131.7,125.55,sapling,2016LA_Mapped_Euterpe
+V7682,119.1,139.65,sapling,2016LA_Mapped_Euterpe
+V7997,102.3,126.5,sapling,2016LA_Mapped_Euterpe
+V8064,102.5,139.7,sapling,2016LA_Mapped_Euterpe
+V8131,105.8,129.9,sapling,2016LA_Mapped_Euterpe
+V8288,94,134.1,sapling,2016LA_Mapped_Euterpe
+V8341,92.5,143,sapling,2016LA_Mapped_Euterpe
+V855,90.5,54.7,sapling,2016LA_Mapped_Euterpe
+V8647,71.6,131.3,sapling,2016LA_Mapped_Euterpe
+R1222,71.1,115.4,sapling,2016LA_Mapped_Euterpe
+R349,79.7,58.4,sapling,2016LA_Mapped_Euterpe
+V1847,132.2,69.7,sapling,2016LA_Mapped_Euterpe
+V1879,126.1,53,sapling,2016LA_Mapped_Euterpe
+V5176,59.5,101.35,sapling,2016LA_Mapped_Euterpe
+1,140.15,141.47,seedling,2017 LA DATA
+2,141.32,136.8,seedling,2017 LA DATA
+3,138.98,136.15,seedling,2017 LA DATA
+4,142.67,128.9,seedling,2017 LA DATA
+5,142.57,128.87,seedling,2017 LA DATA
+6,141.66,131.45,seedling,2017 LA DATA
+7,112.27,155.92,seedling,2017 LA DATA
+8,106.96,142.4,seedling,2017 LA DATA
+9,102.82,140.3,seedling,2017 LA DATA
+10,99.15,136.64,seedling,2017 LA DATA
+11,94.04,133.35,seedling,2017 LA DATA
+12,91.95,131.48,seedling,2017 LA DATA
+13,85.07,126.83,seedling,2017 LA DATA
+14,85.9,136.2,seedling,2017 LA DATA
+15,85.15,136.6,seedling,2017 LA DATA
+16,86.94,142.64,seedling,2017 LA DATA
+17,92.01,136.95,seedling,2017 LA DATA
+18,93.48,137.48,seedling,2017 LA DATA
+19,94.62,135.6,seedling,2017 LA DATA
+20,95.07,135.7,seedling,2017 LA DATA
+21,96.62,141.24,seedling,2017 LA DATA
+22,95.67,140.15,seedling,2017 LA DATA
+23,100.51,146.8,seedling,2017 LA DATA
+26,57.9,127,seedling,2017 LA DATA
+27,58.09,129,seedling,2017 LA DATA
+28,47.1,145.51,seedling,2017 LA DATA
+29,51.03,108.63,seedling,2017 LA DATA
+31,49.91,103.11,seedling,2017 LA DATA
+33,69.44,113.83,seedling,2017 LA DATA
+34,73.78,113.51,seedling,2017 LA DATA
+35,86.8,119.61,seedling,2017 LA DATA
+36,80.92,107.48,seedling,2017 LA DATA
+37,100.9,101.31,seedling,2017 LA DATA
+39,148.61,121.49,seedling,2017 LA DATA
+40,129.01,118.25,seedling,2017 LA DATA
+42,151.43,135.47,seedling,2017 LA DATA
+43,158.12,125.26,seedling,2017 LA DATA
+44,154.67,110.62,seedling,2017 LA DATA
+45,150.18,111.21,seedling,2017 LA DATA
+46,151.2,110.35,seedling,2017 LA DATA
+48,154.88,88.05,seedling,2017 LA DATA
+49,154.75,85.72,seedling,2017 LA DATA
+50,152.36,82.73,seedling,2017 LA DATA
+54,155.53,67.12,seedling,2017 LA DATA
+55,159.65,60.48,seedling,2017 LA DATA
+56,154.38,76.25,seedling,2017 LA DATA
+58,151.39,25.17,seedling,2017 LA DATA
+59,150.44,23.3,seedling,2017 LA DATA
+60,143.57,25.39,seedling,2017 LA DATA
+61,140.46,33.19,seedling,2017 LA DATA
+62a,138.97,27.12,seedling,2017 LA DATA
+64,111.88,27.24,seedling,2017 LA DATA
+65,106.58,31.53,seedling,2017 LA DATA
+66,116.42,25.97,seedling,2017 LA DATA
+67,113.46,30.3,seedling,2017 LA DATA
+70,97.61,25.79,seedling,2017 LA DATA
+71,96.98,29.4,seedling,2017 LA DATA
+72,95.07,32,seedling,2017 LA DATA
+73,97.42,33.02,seedling,2017 LA DATA
+80,40.42,35.75,seedling,2017 LA DATA
+83,49.79,62.69,seedling,2017 LA DATA
+85,39.12,72.38,seedling,2017 LA DATA
+86,32.69,72.36,seedling,2017 LA DATA
+87,34.15,72.55,seedling,2017 LA DATA
+88,47.92,77.32,seedling,2017 LA DATA
+89,43,82.8,seedling,2017 LA DATA
+90,45.52,82.04,seedling,2017 LA DATA
+92,47.97,101.97,seedling,2017 LA DATA
+94,25.11,112.7,seedling,2017 LA DATA
+95,28.64,113.22,seedling,2017 LA DATA
+96,27.99,113.25,seedling,2017 LA DATA
+98,46.16,126.97,seedling,2017 LA DATA
+99,39.76,127.45,seedling,2017 LA DATA
+100,35.96,127.58,seedling,2017 LA DATA
+101,31.44,139.89,seedling,2017 LA DATA
+104,24.57,134.3,seedling,2017 LA DATA
+105,49.21,168.86,seedling,2017 LA DATA
+106,38.18,170.85,seedling,2017 LA DATA
+108,34.83,161.26,seedling,2017 LA DATA
+110,54.92,168.7,seedling,2017 LA DATA
+111,72.08,163.16,seedling,2017 LA DATA
+112,76.32,159.8,seedling,2017 LA DATA
+113,91.28,142.54,seedling,2017 LA DATA
+115,87.85,171.47,seedling,2017 LA DATA
+117,87.34,172.49,seedling,2017 LA DATA
+118,90.3,162.5,seedling,2017 LA DATA
+119,89.41,168.68,seedling,2017 LA DATA
+123,96.09,156.41,seedling,2017 LA DATA
+125,108.25,166.62,seedling,2017 LA DATA
+03R,80.16,172.73,seedling,2017 LA DATA
+04R,164.73,62.05,seedling,2017 LA DATA
+05R,185.75,94.88,seedling,2017 LA DATA
+06R,171.8,60.6,seedling,2017 LA DATA
+07R,176.78,67.48,seedling,2017 LA DATA
+10R,178.17,43.44,seedling,2017 LA DATA
+11R,166.88,36.85,seedling,2017 LA DATA
+12R,162.38,30.96,seedling,2017 LA DATA
+13R,163.05,31.78,seedling,2017 LA DATA
+14R,144.25,45.16,seedling,2017 LA DATA
+16R,104.7,118.52,seedling,2017 LA DATA
+17R,134.31,37.33,seedling,2017 LA DATA
+20R,117.82,29.51,seedling,2017 LA DATA
+22R,89.56,49.45,seedling,2017 LA DATA
+23R,92.5,28.28,seedling,2017 LA DATA
+25R,29.7,42.38,seedling,2017 LA DATA
+26R,37.39,54.75,seedling,2017 LA DATA
+31R,26.12,126.29,seedling,2017 LA DATA
+32R,28.1,127.95,seedling,2017 LA DATA
+33R,34.3,122.5,seedling,2017 LA DATA
+34R,25.65,118.33,seedling,2017 LA DATA
+35R,25.78,124.25,seedling,2017 LA DATA
+36R,34.1,108.57,seedling,2017 LA DATA
+37R,31.91,142.3,seedling,2017 LA DATA
+39R,37.85,140.45,seedling,2017 LA DATA
+40R,29.43,140.44,seedling,2017 LA DATA
+41R,28.11,132.6,seedling,2017 LA DATA
+42R,34.23,166.1,seedling,2017 LA DATA
+43R,30.82,160.32,seedling,2017 LA DATA
+44R,74.77,165.87,seedling,2017 LA DATA
+46R,95.89,172.5,seedling,2017 LA DATA
+47R,94.09,167.56,seedling,2017 LA DATA
+48R,94.51,166.29,seedling,2017 LA DATA
+49R,92.82,168.9,seedling,2017 LA DATA
+50R,86.52,166.56,seedling,2017 LA DATA
+51R,93.78,170.77,seedling,2017 LA DATA
+52R,102.75,173.8,seedling,2017 LA DATA
+53R,106.87,172.34,seedling,2017 LA DATA
+54R,106.66,167.07,seedling,2017 LA DATA
+55R,112.28,167.47,seedling,2017 LA DATA
+56R,139.24,172.29,seedling,2017 LA DATA
+57R,139.6,170.7,seedling,2017 LA DATA
+58R,139.64,170.73,seedling,2017 LA DATA
+59R,141.04,168.19,seedling,2017 LA DATA
+60R,154.95,166.67,seedling,2017 LA DATA
+R10,162.3,82.9,seedling,2016LA_ExhaustiveSearch_Euterpe
+R11,116.5,59.8,seedling,2016LA_ExhaustiveSearch_Euterpe
+R2,71.4,48,seedling,2016LA_ExhaustiveSearch_Euterpe
+R20,71.7,74.3,seedling,2016LA_ExhaustiveSearch_Euterpe
+R24,77.7,60.1,seedling,2016LA_ExhaustiveSearch_Euterpe
+R25,151.3,89.9,seedling,2016LA_ExhaustiveSearch_Euterpe
+R3,50.55,78.7,seedling,2016LA_ExhaustiveSearch_Euterpe
+R30,100.98,73.1,seedling,2016LA_ExhaustiveSearch_Euterpe
+R33,57.7,82.95,seedling,2016LA_ExhaustiveSearch_Euterpe
+R37,99.25,85.85,seedling,2016LA_ExhaustiveSearch_Euterpe
+R39,66.5,54.85,seedling,2016LA_ExhaustiveSearch_Euterpe
+R4,121.1,90.6,seedling,2016LA_ExhaustiveSearch_Euterpe
+R45b,128.6,80.15,seedling,2016LA_ExhaustiveSearch_Euterpe
+R51,62.9,83.4,seedling,2016LA_ExhaustiveSearch_Euterpe
+R53,101.4,60.45,seedling,2016LA_ExhaustiveSearch_Euterpe
+R54,53,92.7,seedling,2016LA_ExhaustiveSearch_Euterpe
+R55,84.9,70.3,seedling,2016LA_ExhaustiveSearch_Euterpe
+R56,133.5,67.5,seedling,2016LA_ExhaustiveSearch_Euterpe
+R58,87.5,62.1,seedling,2016LA_ExhaustiveSearch_Euterpe
+R60,54.5,79.7,seedling,2016LA_ExhaustiveSearch_Euterpe
+R65,45,6.3,seedling,2016LA_ExhaustiveSearch_Euterpe
+R69,66.3,69.6,seedling,2016LA_ExhaustiveSearch_Euterpe
+R72,157.55,91.1,seedling,2016LA_ExhaustiveSearch_Euterpe
+R75,65.8,50.9,seedling,2016LA_ExhaustiveSearch_Euterpe
+R76,123.2,59.2,seedling,2016LA_ExhaustiveSearch_Euterpe
+R78,146.9,62.8,seedling,2016LA_ExhaustiveSearch_Euterpe
+R80,112,64,seedling,2016LA_ExhaustiveSearch_Euterpe
+R82,76.05,78.85,seedling,2016LA_ExhaustiveSearch_Euterpe
+R85,120.3,83.8,seedling,2016LA_ExhaustiveSearch_Euterpe
+R90,54.4,95.95,seedling,2016LA_ExhaustiveSearch_Euterpe
+R91,85,76.28,seedling,2016LA_ExhaustiveSearch_Euterpe
+R93,124.05,60.92,seedling,2016LA_ExhaustiveSearch_Euterpe
+R94,134.85,50.8,seedling,2016LA_ExhaustiveSearch_Euterpe
+R95,133.5,67.7,seedling,2016LA_ExhaustiveSearch_Euterpe
+R96,127.2,62.6,seedling,2016LA_ExhaustiveSearch_Euterpe
+R97,59.7,93.7,seedling,2016LA_ExhaustiveSearch_Euterpe
+R98,57.65,61.1,seedling,2016LA_ExhaustiveSearch_Euterpe
+R99,135.6,78.6,seedling,2016LA_ExhaustiveSearch_Euterpe

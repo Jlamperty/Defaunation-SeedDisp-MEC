@@ -1,0 +1,30 @@
+Pooled cohorts (adults and seedlings) with each site separated by 'pop' line. Samples missing info at >2 loci are removed as are the 6 outlier samples; Epr36 and Epr25 are removed
+EPR05
+EPR08
+EPR03
+EPR32
+EPR35
+EPR02
+EPR06
+Pop
+
+	Kruskal-Wallis rank sum test
+
+data:  distance_to_nearest_adult by Site
+Kruskal-Wallis chi-squared = 48.733, df = 2,
+p-value = 2.617e-11
+
+
+	Kruskal-Wallis rank sum test
+
+data:  Pairwise_distance by Site
+Kruskal-Wallis chi-squared = 1.9549, df = 2,
+p-value = 0.3763
+
+
+	Kruskal-Wallis rank sum test
+
+data:  Pairwise_distance by Site
+Kruskal-Wallis chi-squared = 2429.8, df = 2,
+p-value < 2.2e-16
+

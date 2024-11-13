@@ -1,0 +1,3303 @@
+---
+title: "Does defaunation effect seed-mediated gene flow and population genetics for a generalist palm?"
+author: "Therese Lamperty"
+date: started 1 January 2023 (but really back in 2016); most recent edits `r format(Sys.time(),
+  '%d %B %Y')`
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+  md_document:
+    variant: markdown_github
+  html_document:
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    number_sections: yes
+    code_folding: hide
+    theme: cosmo
+    keep_md: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load packages
+
+```{r packages, message = F, results = F, warning = F}
+extrafont::loadfonts(device="win")
+# CREATE PACKAGE LIST:
+# (ADD / delete the packages you need / don't below!)
+Packages <- c("tidyverse", "knitr", "kableExtra", "glmmTMB", "broom.mixed", "grid", "extrafont",
+              "car", "evaluate", "genepop", "hierfstat", "DHARMa", "spatstat", "lme4", "abind", "FSA", "gridExtra", "patchwork", "hrbrthemes", "webshot2", "ggpubr", "rstatix", "spatstat")
+
+
+# LOAD PACKAGES:
+lapply(Packages, library, character.only = TRUE)
+
+```
+
+**Packages used:**
+
+`r Packages`
+
+# Project and data overview
+
+**Project overview**
+
+This project investigates if defaunation and the subsequent loss of seed-dispersing animals has negative effects on seed-mediated gene flow in an animal-dispersed palm species, *Euterpe precatoria*. *E. precatoria* is a hyperabundant species (Hans ter Steege et al 2013, Science) in the Amazon. By virtue of being a relatively small-seeded species with many viable dispersal agents, several of which do not decrease in abundance under anthropogenic pressures such as hunting, *E. precatoria* is considered a generalist. This is in contrast to large-seeded plants, which tend to be considered 'specialists' only able to gain truly effective seed-dispersal services from large-bodied animals. While such specialist plants have been the focus of multiple studies examing how defaunation affects seed-mediated gene flow and physical dispersal patterns, smaller-seeded generalist plants such as E. precatoria have yet to be examined in this context, despite their disperser communities overlapping with many frugivore species that disappear under defaunated conditions.
+
+Spatial data and plant tissue samples were collected across a well-documented defaunation gradient (Rosin and Swamy 2013 Neotropical Primates; Bagchi et al 2018 Journal of Ecology) from 2016-2017 in the Madre de Dios region of Peru in the southwestern Amazon Basin.
+
+Broadly speaking, the analysis will compare the spatial (as in physical layout) and the spatial genetic structure, genetic diversity, and inbreeding levels of adult and seedling individuals in 3 sites that represent three different defaunation levels (defaunated, recovering, and faunally-intact). Genetic analysis will be conducted using data from one 4-ha plot in each site.
+
+**Study design**
+
+This work was conducted in 3 sites (82km-113km Euclidean distances between sites) that capture varying levels of human hunting pressure:
+
+* **1.** Reserva Amazonica: most defaunated ("RA" in dataset)
+
+* **2.** Los Amigos: recovering, intermediately-defaunated ("LA" in dataset)
+
+* **3.** Tambopata Research Center: most protected and faunally-intact ("TRC" in dataset)
+
+**Genotyping**
+
+We amplified 11 microsatellite loci using polymerase chain reaction (PCR). Some marker quality checks included software outside of R (e.g. Microchecker). Microsatellite primers were developed by Arias et al., 2016. Alleles were called using the program GENEMARKER v. 1.85 (SoftGenetics).
+
+**Spatial genetic structure**
+
+Spatial genetic structure analysis was done in the SPAGeDi program.
+
+Note my plots were 4 ha each, or, 200 x 200 m, the longest possible point between my samples would be the hypotenuse, or 282.84m.
+
+**Data fields explained:**
+
+  * X, Y in the data refer to coordinates based on sample location relative to the (0,0) SE corner of each study plot, in meters.
+  
+  * 'STAGE' refers to plant proximate age/life stage. 
+  
+  * SAMPLEID refers to unique identifier used consistently for the same individual to link the tissue sample, DNA sample, location data, and genotype data together.
+
+# Data import, initial cleaning/formatting
+
+For starters, save some labels I'll use in plotting later.
+
+```{r save labels used in plotting}
+# Also, I will use these labels stored here
+sites <- c("RA" = "Defaunated site (RA)", "LA" = "Recovering site (LA)", "TRC" = "Faunally-intact site (TRC)")
+
+metrics <- c("Ar" = "Rarefied allelic richness (Ar)", "Hs" = "Gene diversity (Hs)", "Ho" = "Observed heterozygosity (Ho)", "Fis" = "Inbreeding coefficient (Fis)")
+```
+
+Read in genotype data, get column names formatted, look at failure rates, remove problem markers.
+      
+```{r import data and do preliminary formatting and cleaning, message=FALSE}
+
+# import data
+master.df <- read.csv("data-in/EUPR_all_genetic_data_20191227.csv") # raw allele data
+
+# 6 outliers were identified with adegenet through Zoe Diaz-Martin's analysis across sites 
+
+# 5 of the 6 genetic outliers were individuals from the plate T2 for DNA extractions, indicating some contamination may have occurred. The sample that was not in plate T2 was individual '10R' which had allele calls for EP02 and EPR06 that are not seen in any other LA samples except in the individuals where several alleles >=3 were missing.
+
+# removing the 6 genetic outliers here (all seedlings):
+# list of outlier SAMPLEID
+outliers <- c("143", "O83", "106", "o9", "10R", "11")
+
+# make remove list which includes PLOT
+remove <- master.df %>%
+  filter(SAMPLEID %in% outliers)
+
+# there are two seedlings with SAMPLEID '11', one in TRC and one in LA. I want the LA one, filter out the TRC one
+remove <- remove[-1,]
+
+master.df <- anti_join(master.df, remove)
+
+rm(remove, outliers)
+
+# clean up names
+# some loci use Ep and some EPR, change to be consistent
+colnames(master.df) <- gsub("Ep", "EPR", colnames(master.df))
+
+# change naming scheme to A and B loci
+loci <- master.df %>%
+  dplyr::select(-c(1:5))
+
+# add the _A identifier to the first allele at a loci
+colnames(loci) <- paste(colnames(loci),"A", sep="_")
+
+# now change the second allele names for a given loci to have '_B' as their identifier 
+colnames(loci) <- gsub(".1_A", "_B", colnames(loci))
+
+# and rejoin the allele info with the sample info
+master.df <- cbind(master.df[1:5], loci)
+
+# clean up loci temp df
+rm(loci)
+
+#read in adult sgs files
+
+adult.SGS.plotting.df <- read.csv(file = "data-out/adult.SGS.plotting.df.csv")
+
+adult.SPAG.dist.info <- read.csv(file = "data-out/adult.SPAG.dist.info.csv")
+
+adult.SPAG.stats<-read.csv(file = "data-out/adult.SPAG.stats.csv")
+
+adult.SPAG.vals <-read.csv(file = "data-out/adult.SPAG.vals.csv")
+
+# read in sdlg sgs files
+
+sdlg.SGS.plotting.df <- read.csv(file = "data-out/sdlg.SGS.plotting.df_no.outliers.csv")
+
+sdlg.SPAG.dist.info <- read.csv(file = "data-out/sdlg.SPAG.dist.info_no.outliers.csv")
+
+sdlg.SPAG.stats<-read.csv(file = "data-out/sdlg.SPAG.stats_no.outliers.csv")
+
+sdlg.SPAG.vals <-read.csv(file = "data-out/sdlg.SPAG.vals_no.outliers.csv")
+
+#Read in spatial data (the X, Y coordinates of every E. precatoria individual in the 4-ha plots), clean, format, subset, summarize.
+
+xy.LA <- read.csv("data-in/16Aug2018_LosAmigosVarunsPlot.csv")
+xy.RA <- read.csv("data-in/16Aug2018_ReservaAmazonicaVarunsPlot.csv")
+xy.TRC <- read.csv("data-in/16Aug2018_TambopataVarunsPlot.csv")
+
+# add a site column to each
+
+# also add a 'faunal status' column to each 
+
+xy.RA$site <- "RA"
+xy.RA$status <- "defaunated"
+
+xy.LA$site <- "LA"
+xy.LA$status <- "recovering"
+
+xy.TRC$site <- "TRC"
+xy.TRC$status <- "faunally_intact"
+
+# select columns I want
+
+xy.RA <- xy.RA %>%
+  dplyr::select(site, status, tag, x, y, stage)
+
+xy.LA <- xy.LA %>%
+  dplyr::select(site, status, tag, x, y, stage)
+
+xy.TRC <- xy.TRC %>%
+  dplyr::select(site, status, tag, x, y, stage)
+
+# some locations are NA because I opportunistically grabbed those samples outside of the plots and recorded locations via gps. I highly doubt they are going to make or break the study, so I am going to remove the NAs
+
+xy.RA <- na.omit(xy.RA)
+xy.LA <- na.omit(xy.LA)
+xy.TRC <- na.omit(xy.TRC)
+
+# make 'tag' SAMPLEID
+colnames(xy.RA)[3] <- "SAMPLEID"
+colnames(xy.LA)[3] <- "SAMPLEID"
+colnames(xy.TRC)[3] <- "SAMPLEID"
+
+# make x, y, stage capitalized to match above work
+colnames(xy.RA)[4] <- "X"
+colnames(xy.RA)[5] <- "Y"
+
+colnames(xy.LA)[4] <- "X"
+colnames(xy.LA)[5] <- "Y"
+
+colnames(xy.TRC)[4] <- "X"
+colnames(xy.TRC)[5] <- "Y"
+
+# rbind together
+
+full.mapping.df <- rbind(xy.RA, xy.LA, xy.TRC)
+
+# typo bc one is at X = 770m; need to remove
+
+full.mapping.df <- full.mapping.df %>%
+ filter(X != 770.0)
+```
+
+
+```{r drop markers with issues}
+
+# drop Epr36 due to too high of amplification failure rate in adults
+# drop Epr25 due to low heterozygosity and polymorphism
+
+master.df <- master.df %>%
+  dplyr::select(-c(EPR36_A, EPR36_B, EPR25_A, EPR25_B))
+
+#--------#
+
+# make a copy that I will convert to genepop format
+genepop <- master.df
+
+```
+
+Get ready to put master dataset into genepop format, remove individuals that are missing data for 2 or more loci.  
+
+```{r start genepop prep and remove samps with high marker failures}
+
+# replace NAs and single 0's with '000' for gene pop
+genepop[is.na(genepop)] <- '000'
+
+# Drop individuals if 30% or more of their loci contain missing data
+
+# First make multiple temp binary 0 or 1 columns to indicate if a column was missing data ('0') or not ('1') 
+
+genepop <- genepop %>%
+  mutate(EPR02_failed = ifelse(EPR02_A == "000", 0, 1)) %>%
+  mutate(EPR03_failed = ifelse(EPR03_A == "000", 0, 1)) %>%
+  mutate(EPR05_failed = ifelse(EPR05_A == "000", 0, 1)) %>%
+  mutate(EPR06_failed = ifelse(EPR06_A == "000", 0, 1)) %>%
+  mutate(EPR08_failed = ifelse(EPR08_A == "000", 0, 1)) %>%
+  mutate(EPR32_failed = ifelse(EPR32_A == "000", 0, 1)) %>%
+  mutate(EPR35_failed = ifelse(EPR35_A == "000", 0, 1)) 
+
+# sum the n markers individuals were successfully genotyped at using the temp binary columns
+genepop.highres.sums <- genepop %>%
+  mutate(n_markers_genotyped = rowSums(.[20:26]))
+
+# remove the temp binary columns 
+genepop <- genepop.highres.sums %>%
+  dplyr::select(-c(20:26))
+
+rm(genepop.highres.sums)
+
+# remove individuals if 30% or more of loci contain missing data:
+# 0.3*7 = 2.1
+# if 2 or more loci contain missing data, remove that individual
+# aka only keep samples genotyped at 5 or more loci
+
+genepop <- genepop %>%
+  filter(n_markers_genotyped > 4)
+
+genepop <- genepop %>%
+  dplyr::select(-n_markers_genotyped)
+```
+
+## Genepop formatting
+
+Build genepop formatted dataset and save .txt for external analyses.
+
+Step 1, joining alleles and making temp df to manipulate later with comma delimitation for info needed for genepop in one row:
+
+```{r genepop format step 1}
+
+#join alleles
+genepop.temp <- genepop %>%
+  unite(EPR02, EPR02_A:EPR02_B, na.rm = FALSE, remove = TRUE, sep = "") %>%
+  unite(EPR03, EPR03_A:EPR03_B, na.rm = FALSE, remove = TRUE, sep = "") %>%
+  unite(EPR05, EPR05_A:EPR05_B, na.rm = FALSE, remove = TRUE, sep = "") %>%
+  unite(EPR06, EPR06_A:EPR06_B, na.rm = FALSE, remove = TRUE, sep = "") %>%
+  unite(EPR08, EPR08_A:EPR08_B, na.rm = FALSE, remove = TRUE, sep = "") %>%
+  unite(EPR32, EPR32_A:EPR32_B, na.rm = FALSE, remove = TRUE, sep = "") %>%
+  unite(EPR35, EPR35_A:EPR35_B, na.rm = FALSE, remove = TRUE, sep = "")
+
+genepop.temp <- genepop.temp %>%
+  unite(ID_GENOTYPES, SAMPLEID:EPR05, na.rm = FALSE, remove = TRUE, sep = ",\t") %>%
+  unite(ID_GENOTYPES, ID_GENOTYPES:EPR06, na.rm = FALSE, remove = TRUE, sep = "\t")
+```
+
+Genepop version one: samples pooled across cohorts and sites separated as different populations.
+
+This version is used for checking marker quality through linkage disequilibrium and hardy weinberg equilibrium tests and null allele frequency estimates.
+
+```{r make genepop file with samples pooled and sites separated as pops}
+
+# this is used to test for linkage disequilibrium, hardy weinberg equilibrium, and to get null allele frequency estimates
+
+# cohorts pooled, sites as separate pops
+
+RA.pooled <- genepop.temp %>%
+ filter(PLOT == "RA")
+
+LA.pooled <- genepop.temp %>%
+ filter(PLOT == "LA")
+
+TRC.pooled <- genepop.temp %>%
+ filter(PLOT == "TRC")
+
+# remove columns
+RA.pooled <- RA.pooled %>%
+  dplyr::select(-c(X, Y, STAGE, PLOT))
+LA.pooled <- LA.pooled %>%
+  dplyr::select(-c(X, Y, STAGE, PLOT))
+TRC.pooled<- TRC.pooled %>%
+  dplyr::select(-c(X, Y, STAGE, PLOT))
+
+# build txt file
+sink("data-out/genepop_format_sites.sep.cohorts.pooled.txt")
+cat("Pooled cohorts (adults and seedlings) with each site separated by 'pop' line. Samples missing info at >2 loci are removed as are the 6 outlier samples; Epr36 and Epr25 are removed\n")
+cat("EPR05\n")
+cat("EPR08\n")
+cat("EPR03\n")
+cat("EPR32\n")
+cat("EPR35\n")
+cat("EPR02\n")
+cat("EPR06\n")
+cat("Pop\n")
+#invisible(apply(RA.pooled, 1,function(x) cat(x,"\n")))
+#cat("Pop\n")
+#invisible(apply(LA.pooled, 1,function(x) cat(x,"\n")))
+#cat("Pop\n")
+#invisible(apply(TRC.pooled, 1,function(x) cat(x,"\n")))
+#sink()
+
+#clean
+rm(RA.pooled, LA.pooled, TRC.pooled)
+```
+
+Genepop version two: separate genepop formatted files for each cohort (seedling and adult), all sites still separated as populations. 
+
+This version is used for checking population genetic structure of each cohort across sites and assessing genetic differentiation between sites. 
+
+```{r make genepop file with cohorts separate and sites separate}
+
+# to facilitate checking genetic structure across sites, we also need a genepop formatted file for seedlings and one for adults (sites in same file, separated as 'pops')
+
+# subset adults
+adults <- genepop.temp %>%
+ filter(STAGE == "ADULT")
+
+# subset seedlings
+seedlings <- genepop.temp %>%
+ filter(STAGE == "SEEDLING")
+
+# separate sites for each cohort
+RA.adlt <- adults %>%
+ filter(PLOT == "RA")
+LA.adlt <- adults %>%
+ filter(PLOT == "LA")
+TRC.adlt <- adults %>%
+ filter(PLOT == "TRC")
+
+# remove columns
+RA.adlt <- RA.adlt %>%
+  dplyr::select(-c(X, Y, STAGE, PLOT))
+LA.adlt <- LA.adlt %>%
+  dplyr::select(-c(X, Y, STAGE, PLOT))
+TRC.adlt<- TRC.adlt %>%
+  dplyr::select(-c(X, Y, STAGE, PLOT))
+
+# repeat with seedling
+RA.seedling <- seedlings %>%
+ filter(PLOT == "RA")
+LA.seedling <- seedlings %>%
+ filter(PLOT == "LA")
+TRC.seedling <- seedlings %>%
+ filter(PLOT == "TRC")
+
+# remove columns
+RA.seedling <- RA.seedling %>%
+  dplyr::select(-c(X, Y, STAGE, PLOT))
+LA.seedling <- LA.seedling %>%
+  dplyr::select(-c(X, Y, STAGE, PLOT))
+TRC.seedling<- TRC.seedling %>%
+  dplyr::select(-c(X, Y, STAGE, PLOT))
+
+# build .txt file
+# adults
+#sink("data-out/genepop_format_sites.sep.adults.txt")
+#cat("Adult samples with each site distinguished by 'pop' line. Samples missing info at >2 loci are removed as are the 6 outlier samples; Epr36 and Epr25 are removed\n")
+#cat("EPR05\n")
+#cat("EPR08\n")
+#cat("EPR03\n")
+#cat("EPR32\n")
+#cat("EPR35\n")
+#cat("EPR02\n")
+#cat("EPR06\n")
+#cat("Pop\n")
+#invisible(apply(RA.adlt, 1,function(x) cat(x,"\n")))
+#cat("Pop\n")
+#invisible(apply(LA.adlt, 1,function(x) cat(x,"\n")))
+#cat("Pop\n")
+#invisible(apply(TRC.adlt, 1,function(x) cat(x,"\n")))
+#sink()
+
+# seedlings
+#sink("data-out/genepop_format_sites.sep.seedlings.txt")
+#cat("Seedling samples only. Each site distinguished by 'pop' line. Samples missing info at >2 loci are removed as are the 6 outlier samples; Epr36 and Epr25 are removed\n")
+#cat("EPR05\n")
+#cat("EPR08\n")
+#cat("EPR03\n")
+#cat("EPR32\n")
+#cat("EPR35\n")
+#cat("EPR02\n")
+#cat("EPR06\n")
+#cat("Pop\n")
+#invisible(apply(RA.seedling, 1,function(x) cat(x,"\n")))
+#cat("Pop\n")
+#invisible(apply(LA.seedling, 1,function(x) cat(x,"\n")))
+#cat("Pop\n")
+#invisible(apply(TRC.seedling, 1,function(x) cat(x,"\n")))
+#sink()
+
+#clean
+rm(genepop.temp, adults, seedlings)
+```
+
+
+```{r make genepop file with pooled cohorts sep sites}
+
+# Per Reviewer 2's request (Molec Ecology, July 2024), to facilitate checking genetic differentiation between cohorts within sites, we also need a genepop and spagedi formatted series of dfs (3 files, 1 per site, cohorts in same file, separated as 'pops')
+
+# build txt file
+#sink("data-out/genepop_format_RA.int.cohorts.txt")
+#cat("RA seedlings and adults, cohort separated by 'pop' line. Samples missing info at >2 loci are removed as are the 6 outlier samples; Epr36 and Epr25 are removed\n")
+#cat("EPR05\n")
+#cat("EPR08\n")
+#cat("EPR03\n")
+#cat("EPR32\n")
+#cat("EPR35\n")
+#cat("EPR02\n")
+#cat("EPR06\n")
+#cat("Pop\n")
+#invisible(apply(RA.adlt, 1,function(x) cat(x,"\n")))
+#cat("Pop\n")
+#invisible(apply(RA.seedling, 1,function(x) cat(x,"\n")))
+#sink()
+#clean
+
+# build txt file
+#sink("data-out/genepop_format_LA.int.cohorts.txt")
+#cat("LA seedlings and adults, cohort separated by 'pop' line. Samples missing info at >2 loci are removed as are the 6 outlier samples; Epr36 and Epr25 are removed\n")
+#cat("EPR05\n")
+#cat("EPR08\n")
+#cat("EPR03\n")
+#cat("EPR32\n")
+#cat("EPR35\n")
+#cat("EPR02\n")
+#cat("EPR06\n")
+#cat("Pop\n")
+#invisible(apply(LA.adlt, 1,function(x) cat(x,"\n")))
+#cat("Pop\n")
+#invisible(apply(LA.seedling, 1,function(x) cat(x,"\n")))
+#sink()
+#clean
+
+# build txt file
+#sink("data-out/genepop_format_TRC.int.cohorts.txt")
+#cat("TRC seedlings and adults, cohort separated by 'pop' line. Samples missing info at >2 loci are removed as are the 6 outlier samples; Epr36 and Epr25 are removed\n")
+#cat("EPR05\n")
+#cat("EPR08\n")
+#cat("EPR03\n")
+#cat("EPR32\n")
+#cat("EPR35\n")
+#cat("EPR02\n")
+#cat("EPR06\n")
+#cat("Pop\n")
+#invisible(apply(TRC.adlt, 1,function(x) cat(x,"\n")))
+#cat("Pop\n")
+#invisible(apply(TRC.seedling, 1,function(x) cat(x,"\n")))
+#sink()
+#clean
+
+```
+
+## Hierfstat formatting
+
+Format data into Hierfstat format (Hierfstat package is used to compute population genetics metrics and marker info).
+
+```{r get data into hierfstat format}
+
+# get data into hierfstat format
+hierf.pooled <- genepop %>%
+  unite(EPR02, EPR02_A:EPR02_B, na.rm = FALSE, remove = TRUE, sep = "") %>%
+  unite(EPR03, EPR03_A:EPR03_B, na.rm = FALSE, remove = TRUE, sep = "") %>%
+  unite(EPR05, EPR05_A:EPR05_B, na.rm = FALSE, remove = TRUE, sep = "") %>%
+  unite(EPR06, EPR06_A:EPR06_B, na.rm = FALSE, remove = TRUE, sep = "") %>%
+  unite(EPR08, EPR08_A:EPR08_B, na.rm = FALSE, remove = TRUE, sep = "") %>%
+  unite(EPR32, EPR32_A:EPR32_B, na.rm = FALSE, remove = TRUE, sep = "") %>%
+  unite(EPR35, EPR35_A:EPR35_B, na.rm = FALSE, remove = TRUE, sep = "")
+
+hierf.pooled[hierf.pooled == "000000"] <- NA # make the NANA joined product just a normal NA
+
+# these are characters right now... they need to be numeric
+hierf.pooled <- hierf.pooled %>% 
+  mutate_at(vars(6:12), as.numeric)
+
+# hierf seedling df
+hierf.seedlings <- hierf.pooled %>% 
+ filter(STAGE == "SEEDLING")
+
+# hierf adult df
+hierf.adults <- hierf.pooled %>% 
+ filter(STAGE == "ADULT")
+```
+
+# Data overview
+
+## Map
+
+```{r for mapping, message = FALSE}
+
+# isolate the individuals that have been genotyped (so I can make a map with them identified)
+
+# make unique identifier to facilitate this
+genepop$plot.sample.id = paste(genepop$PLOT, genepop$SAMPLEID, sep = ".")
+
+full.mapping.df$plot.sample.id = paste(full.mapping.df$site, full.mapping.df$SAMPLEID, sep = ".")
+
+# isolate the individuals that have been genotyped (so I can make a map with them identified)
+genotyped <- full.mapping.df %>%
+  filter(plot.sample.id %in% genepop$plot.sample.id)
+
+# looks good to me
+genotyped$Genotyped <- "yes"
+
+# not including the adult genetic analysis in this so I'm going to also change all adults to say 'no' for easier plotting purposes
+genotyped <- genotyped %>%
+  mutate(Genotyped = ifelse(stage == "adult", "yes", Genotyped))
+
+# fix mislabeled seedlings as saplings
+genotyped <- genotyped %>%
+  mutate(stage= ifelse(stage == "sapling" & Genotyped == "yes", "seedling", stage))
+
+# remove saplings
+#full.mapping.df<-full.mapping.df %>%
+ # filter(stage != "sapling")
+
+full.mapping.df <- full.mapping.df %>%
+  mutate(stage = ifelse(SAMPLEID == "T1" | SAMPLEID == "V4437", "seedling", stage))
+
+# join genotyped with full.mapped.df
+genotyped.full.mapping.df <- right_join(genotyped, full.mapping.df)
+
+# convert NA cases to 'no' under genotyped column
+genotyped.full.mapping.df  <- genotyped.full.mapping.df  %>% 
+     replace(is.na(genotyped.full.mapping.df), "no")
+
+# clean
+rm(genotyped)
+```
+
+```{r make a map, message=FALSE, warning=FALSE}
+
+map <- genotyped.full.mapping.df %>%
+  
+  mutate(site = fct_relevel(site, "RA", "LA", "TRC")) %>%
+  
+  ggplot(aes(x= X, y= Y, shape= stage, color = Genotyped)) +
+  
+  geom_point() +
+  
+  geom_jitter(width = 0.3, height = 0.4, alpha = 0.8) + scale_color_manual(values = c("gold2", "olivedrab", "chocolate3")) + scale_shape_manual(values = c(0,1,2)) +
+  
+  scale_x_continuous(limits = c(0,200), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0,200), expand = c(0, 0)) +
+  
+  labs(shape = NULL) +
+  
+  theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(panel.grid = element_blank()) + theme(legend.title=element_blank(), axis.title = element_blank()) 
+
+map <- map + facet_wrap(~site, labeller = labeller(site = sites)) + theme(strip.background = element_rect(color = "black", fill = "lightgray")) + coord_fixed() +
+  theme(panel.spacing.x = unit(5, "mm"))
+
+map
+
+#save
+#ggsave(map, file = "plots/seedlings+adults_maps.jpg")
+rm(map)
+```
+
+## Height distribution
+
+Read in df with height info and examine distributions in each site
+
+```{r read in df with height data, message = FALSE, warning=FALSE}
+
+heights<-read.csv("data-in/TRC_LA_RA-seedlings-heights-dbh.csv")
+
+# visual height distributions
+
+# first remove saplings
+heights <- heights %>%
+  filter(stage=="Seedling")
+
+# attempt to order sites the way I want
+DesiredOrder <- c("RA", "LA", "TRC")
+
+heights$site <- factor(heights$site, levels = DesiredOrder)
+
+height.hist <- heights %>%
+  ggplot(aes(x=height_m, fill=site)) +
+    geom_histogram(color = "black", bins = 20) +
+    scale_fill_manual(values = c("brown4", "burlywood3", "aquamarine3")) + xlab("Height (m)") + ylab("Count") + theme_bw() + theme(legend.position = "none") + theme(axis.text.x = element_text(angle = 45)) + facet_wrap(~site)
+
+# summarize the data 
+
+# function to get mode (most common value in dataset)
+estimate_mode <- function(x) {
+  d <- density(x)
+  d$x[which.max(d$y)]
+}
+
+heights %>%
+  group_by(site) %>%
+  reframe(Mean = mean(height_m),
+          SD = sd(height_m),
+          Median = median(height_m),
+          Mode = estimate_mode(height_m))
+
+# also can make a boxplot:
+
+height.box <- heights %>%
+  ggplot(aes(x=site, y = height_m, fill=site)) +
+    geom_boxplot(width = 0.4) +
+    scale_fill_manual(values = c("brown4", "burlywood3", "aquamarine3")) + ylab("Height (m)") + theme_bw() + theme(legend.position = "none")
+
+height.box
+
+# save figures
+#ggsave(height.box, file = "plots/seedling_height_bxplt.jpg", width = 2.6, height = 2.5)
+
+#ggsave(height.hist, file = "plots/seedling_height_hist.jpg", width = 6, height = 2.5)
+
+# clean
+rm(height.summ, heights, height.hist, height.box, DesiredOrder, estimate_mode)
+```
+
+## Pairwise distances
+
+Make master pairwise distance matrix.
+
+```{r make all pairs distance matrix}
+
+# Calculate pairwise distances
+
+# RA
+# Make SAMPLEID.STAGE column
+xy.RA$SAMPLEID.STAGE = paste(xy.RA$SAMPLEID, xy.RA$stage, sep = "_")
+
+# Get distance matrix
+RA.pairwise_distance_raw <- as.matrix(dist(xy.RA[, c("X", "Y")]))
+
+# Rename rows and columns in distance matrix with tree tag IDs
+rownames(RA.pairwise_distance_raw) <- as.character(xy.RA$`SAMPLEID.STAGE`)
+colnames(RA.pairwise_distance_raw) <- as.character(xy.RA$`SAMPLEID.STAGE`)
+
+# Make it back into a df
+RA.pairwise_distance_df<- as.data.frame(RA.pairwise_distance_raw)
+
+# make rownames first column
+RA.pairwise_distance_df$SAMPLEID.STAGE <- rownames(RA.pairwise_distance_df)
+
+# now get pairs of samples
+RA.distances.all.pairs <- RA.pairwise_distance_df %>%
+  pivot_longer(!SAMPLEID.STAGE, names_to = "SAMPLEID.STAGE.2", values_to = "Pairwise_distance")
+
+# remove duplicates (distance to self)
+RA.distances.all.pairs <- RA.distances.all.pairs %>%
+  filter(Pairwise_distance != 0)
+
+# add stage back
+RA.distances.all.pairs <- RA.distances.all.pairs %>%
+  separate(SAMPLEID.STAGE, into = c('SAMPLEID', 'STAGE'), sep = "_")
+
+RA.distances.all.pairs <- RA.distances.all.pairs %>%
+  separate(SAMPLEID.STAGE.2, into = c('NEIGHBOR_SAMPLE_ID', 'NEIGHBOR_STAGE'), sep = "_")
+
+# one seedling stage designation got weird, fix it
+RA.distances.all.pairs$STAGE <- gsub("seedling.1", "seedling", RA.distances.all.pairs$STAGE)
+
+#----------------------------#
+
+# LA
+xy.LA$SAMPLEID.STAGE = paste(xy.LA$SAMPLEID, xy.LA$stage, sep = "_")
+
+LA.pairwise_distance_raw <- as.matrix(dist(xy.LA[, c("X", "Y")]))
+
+rownames(LA.pairwise_distance_raw) <- as.character(xy.LA$`SAMPLEID.STAGE`)
+colnames(LA.pairwise_distance_raw) <- as.character(xy.LA$`SAMPLEID.STAGE`)
+
+LA.pairwise_distance_df<- as.data.frame(LA.pairwise_distance_raw)
+
+LA.pairwise_distance_df$SAMPLEID.STAGE <- rownames(LA.pairwise_distance_df)
+
+LA.distances.all.pairs <- LA.pairwise_distance_df %>%
+  pivot_longer(!SAMPLEID.STAGE, names_to = "SAMPLEID.STAGE.2", values_to = "Pairwise_distance")
+
+LA.distances.all.pairs <- LA.distances.all.pairs %>%
+  filter(Pairwise_distance != 0)
+
+LA.distances.all.pairs <- LA.distances.all.pairs %>%
+  separate(SAMPLEID.STAGE, into = c('SAMPLEID', 'STAGE'), sep = "_")
+
+LA.distances.all.pairs <- LA.distances.all.pairs %>%
+  separate(SAMPLEID.STAGE.2, into = c('NEIGHBOR_SAMPLE_ID', 'NEIGHBOR_STAGE'), sep = "_")
+
+#----------------------------#
+
+# TRC
+#Repeat process with TRC
+
+xy.TRC$SAMPLEID.STAGE = paste(xy.TRC$SAMPLEID, xy.TRC$stage, sep = "_")
+
+TRC.pairwise_distance_raw <- as.matrix(dist(xy.TRC[, c("X", "Y")]))
+
+rownames(TRC.pairwise_distance_raw) <- as.character(xy.TRC$`SAMPLEID.STAGE`)
+colnames(TRC.pairwise_distance_raw) <- as.character(xy.TRC$`SAMPLEID.STAGE`)
+
+TRC.pairwise_distance_df<- as.data.frame(TRC.pairwise_distance_raw)
+
+TRC.pairwise_distance_df$SAMPLEID.STAGE <- rownames(TRC.pairwise_distance_df)
+
+TRC.distances.all.pairs <- TRC.pairwise_distance_df %>%
+  pivot_longer(!SAMPLEID.STAGE, names_to = "SAMPLEID.STAGE.2", values_to = "Pairwise_distance")
+
+TRC.distances.all.pairs <- TRC.distances.all.pairs %>%
+  filter(Pairwise_distance != 0)
+
+TRC.distances.all.pairs <- TRC.distances.all.pairs %>%
+  separate(SAMPLEID.STAGE, into = c('SAMPLEID', 'STAGE'), sep = "_")
+
+TRC.distances.all.pairs <- TRC.distances.all.pairs %>%
+  separate(SAMPLEID.STAGE.2, into = c('NEIGHBOR_SAMPLE_ID', 'NEIGHBOR_STAGE'), sep = "_")
+```
+
+Get pairwise distance matrix between seedlings and nearest conspecific adults.
+
+```{r get distances btwn seedling and nearest conspec adult}
+
+# Get nearest conspecific seedling and adult info
+
+# RA
+RA.distances.sdl.adult <- RA.distances.all.pairs %>%
+  filter(STAGE == "seedling" & NEIGHBOR_STAGE == "adult")
+
+RA.sdl.nearest.adult <- RA.distances.sdl.adult %>%
+  group_by(SAMPLEID) %>%
+  summarize(distance_to_nearest_adult = min(Pairwise_distance))
+
+# repeat with LA
+LA.distances.sdl.adult <- LA.distances.all.pairs %>%
+  filter(STAGE == "seedling" & NEIGHBOR_STAGE == "adult")
+
+LA.sdl.nearest.adult <- LA.distances.sdl.adult %>%
+  group_by(SAMPLEID) %>%
+  summarize(distance_to_nearest_adult = min(Pairwise_distance))
+
+# repeat with TRC
+TRC.distances.sdl.adult <- TRC.distances.all.pairs %>%
+  filter(STAGE == "seedling" & NEIGHBOR_STAGE == "adult")
+
+TRC.sdl.nearest.adult <- TRC.distances.sdl.adult %>%
+  group_by(SAMPLEID) %>%
+  summarize(distance_to_nearest_adult = min(Pairwise_distance))
+
+# add site column
+RA.sdl.nearest.adult$Site <- "RA"
+LA.sdl.nearest.adult$Site <- "LA"
+TRC.sdl.nearest.adult$Site <-"TRC"
+
+# bring together
+sdl.adult.dist.df <- rbind(RA.sdl.nearest.adult, LA.sdl.nearest.adult, TRC.sdl.nearest.adult)
+
+sdl.adult.dist.df  %>%
+  mutate(Site= fct_relevel(Site, c("RA","LA","TRC"))) %>%
+    group_by(Site) %>%
+  arrange(Site) %>%
+  summarise(mean.distance.nearest.adlt = mean(distance_to_nearest_adult),
+            sdPairwise_distance= sd(distance_to_nearest_adult),
+            nPairwise_distance = n()) %>%
+  mutate(sePairwise_distance = sdPairwise_distance / sqrt(nPairwise_distance))
+
+# histogram
+sdlt.adlt.hist <- sdl.adult.dist.df %>%
+  mutate(Site= fct_relevel(Site, c("RA","LA","TRC"))) %>%
+  arrange(Site) %>%
+  ggplot(aes(x=distance_to_nearest_adult, fill = Site)) + geom_histogram(color = "black") + scale_fill_manual(values = c("darkred", "burlywood3","aquamarine3")) + theme_bw() + facet_wrap(~Site) + theme(legend.position = "none")
+
+sdlt.adlt.hist 
+
+# analyze
+kr.sdl.adlt <- kruskal.test(distance_to_nearest_adult ~ Site,
+  data = sdl.adult.dist.df)
+
+kr.sdl.adlt 
+
+
+sdl.adlt.dunn <- dunnTest(distance_to_nearest_adult ~ Site,
+  data = sdl.adult.dist.df,
+  method = "holm")
+
+sdl.adlt.dunn
+
+# clean
+rm(RA.sdl.nearest.adult, LA.sdl.nearest.adult, TRC.sdl.nearest.adult)
+```
+
+Make violin plot figure of seedling-interconspecific adult nearest neighbor distances.
+
+```{r make a seedling to nearest adult distance summary figure}
+
+sdl.adult.dist.plot <- sdl.adult.dist.df %>% 
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  arrange(Site) %>%
+  ggplot(aes(x = Site, y= distance_to_nearest_adult, fill = Site, color = Site)) +
+  scale_fill_manual(values = c("brown4", "burlywood3", "aquamarine3")) +
+  geom_violin(color = "black", draw_quantiles = 0.5) +
+  ylab("Distance (m)") +
+  xlab(NULL) + theme_bw() +
+  theme(legend.title = element_blank()) + theme(legend.position = "none") + ggtitle("Distances from seedlings to nearest adult") +
+  theme(axis.title = element_text(size = 10, color = "black"),
+        axis.text.y = element_text(size = 10, color = "black"),
+        axis.text.x = element_text(size = 8, color = "black")) + theme(plot.title = element_text(size = 11))
+
+sdl.adult.dist.plot 
+
+#ggsave(sdl.adult.dist.plot, file = "plots/seedling_adult_distances.jpg", height = 3, width = 4)
+
+# clean
+#rm(sdl.adult.dist.df, sdl.adult.dist.plot)
+```
+
+Summarize some intra-cohort pairwise distances (seedling to seedling, adult to adult).
+
+Adults pairwise distance histogram:
+
+```{r adult intra cohort pairwise distance ranges, message=FALSE, warning=FALSE}
+
+# get distances between each adult pair
+
+# RA
+RA.distances.adult.pairs <- RA.distances.all.pairs %>%
+  filter(STAGE == "adult" & NEIGHBOR_STAGE == "adult")
+
+# LA
+LA.distances.adult.pairs <- LA.distances.all.pairs %>%
+  filter(STAGE == "adult" & NEIGHBOR_STAGE == "adult")
+
+# TRC
+TRC.distances.adult.pairs <- TRC.distances.all.pairs %>%
+  filter(STAGE == "adult" & NEIGHBOR_STAGE == "adult")
+
+# add site column
+RA.distances.adult.pairs$Site <- "RA"
+LA.distances.adult.pairs$Site <- "LA"
+TRC.distances.adult.pairs$Site <- "TRC"
+
+# bring together
+adult.pairs.distances <- rbind(RA.distances.adult.pairs, LA.distances.adult.pairs, TRC.distances.adult.pairs)
+
+# remove duplicates because every pair is counted twice as dist A->B and dist B->A
+
+# summarize
+adult.pairs.distances <- adult.pairs.distances %>%
+  distinct(Pairwise_distance, .keep_all= TRUE) 
+
+adult.pairs.distances %>%
+  mutate(Site= fct_relevel(Site, c("RA","LA","TRC"))) %>%
+    group_by(Site) %>%
+  arrange(Site) %>%
+  summarise(mean.pairwise.dist = mean(Pairwise_distance),
+            sdPairwise_distance= sd(Pairwise_distance),
+            nPairwise_distance = n()) %>%
+  mutate(sePairwise_distance = sdPairwise_distance / sqrt(nPairwise_distance))
+
+# histogram
+adlt.adlt.hist <- adult.pairs.distances %>%
+  mutate(Site= fct_relevel(Site, c("RA","LA","TRC"))) %>%
+   arrange(Site) %>%
+  ggplot(aes(x=Pairwise_distance, fill = Site)) + geom_histogram(color = "black") + scale_fill_manual(values = c("darkred", "burlywood3","aquamarine3")) + theme_bw()+ facet_wrap(~Site) + theme(legend.position = "none")
+
+adlt.adlt.hist
+
+# analyze
+kr.adlt.adlt <- kruskal.test(Pairwise_distance ~ Site,
+  data = adult.pairs.distances)
+
+kr.adlt.adlt 
+
+dunn.adlt.adlt <- dunnTest(Pairwise_distance ~ Site,
+  data = adult.pairs.distances,
+  method = "holm"
+)
+
+dunn.adlt.adlt 
+
+```
+
+Seedling intercohort distance ranges:
+
+```{r seedling seedling pairwise distances}
+
+# get distances between each seedling pair
+
+# RA
+RA.distances.seedling.pairs <- RA.distances.all.pairs %>%
+  filter(STAGE == "seedling" & NEIGHBOR_STAGE == "seedling")
+
+# LA
+LA.distances.seedling.pairs <- LA.distances.all.pairs %>%
+  filter(STAGE == "seedling" & NEIGHBOR_STAGE == "seedling")
+
+# TRC
+TRC.distances.seedling.pairs <- TRC.distances.all.pairs %>%
+  filter(STAGE == "seedling" & NEIGHBOR_STAGE == "seedling")
+
+# add site column
+RA.distances.seedling.pairs$Site <- "RA"
+LA.distances.seedling.pairs$Site <- "LA"
+TRC.distances.seedling.pairs$Site <- "TRC"
+
+# bring together
+seedling.pairs.distances <- rbind(RA.distances.seedling.pairs, LA.distances.seedling.pairs, TRC.distances.seedling.pairs)
+
+# remove duplicates because every pair is counted twice as dist A->B and dist B->A
+seedling.pairs.distances <- seedling.pairs.distances %>%
+  distinct(Pairwise_distance, .keep_all= TRUE) 
+
+# summarize
+seedling.pairs.distances  %>%
+  mutate(Site= fct_relevel(Site, c("RA","LA","TRC"))) %>%
+    group_by(Site) %>%
+  arrange(Site) %>%
+  summarise(mean.pairwise.dist = mean(Pairwise_distance),
+            sdPairwise_distance= sd(Pairwise_distance),
+            nPairwise_distance = n()) %>%
+  mutate(sePairwise_distance = sdPairwise_distance / sqrt(nPairwise_distance)) 
+
+# histogram
+sdl.sdl.hist<- seedling.pairs.distances %>%
+  mutate(Site= fct_relevel(Site, c("RA","LA","TRC"))) %>%
+   arrange(Site) %>%
+  ggplot(aes(x=Pairwise_distance, fill = Site)) + geom_histogram(color = "black") + scale_fill_manual(values = c("darkred", "burlywood3","aquamarine3")) + theme_bw() + facet_wrap(~Site) +theme(legend.position = "none")
+
+sdl.sdl.hist
+
+# analyze
+kr.sdl.sdl <- kruskal.test(Pairwise_distance ~ Site,
+  data = seedling.pairs.distances)
+
+kr.sdl.sdl
+
+dunn.sdl.sdl<-dunnTest(Pairwise_distance~ Site,
+  data = seedling.pairs.distances,
+  method = "holm"
+)
+
+dunn.sdl.sdl
+
+# distance to nearest seedling?
+
+seedling.nearest.seedling <- seedling.pairs.distances %>%
+  group_by(Site, SAMPLEID) %>%
+  reframe(nearest_seedling = min(Pairwise_distance))
+
+# summarize
+seedling.nearest.seedling  %>%
+  mutate(Site= fct_relevel(Site, c("RA","LA","TRC"))) %>%
+    group_by(Site) %>%
+  arrange(Site) %>%
+  summarise(mean.pairwise.dist = mean(nearest_seedling),
+            sdPairwise_distance= sd(nearest_seedling),
+            nPairwise_distance = n()) %>%
+  mutate(sePairwise_distance = sdPairwise_distance / sqrt(nPairwise_distance)) 
+
+```
+
+```{r make a seedling to seedling distance figure }
+sdl.sdl.plot <- seedling.pairs.distances %>% 
+  
+  mutate(site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  
+  ggplot(aes(x = site, y= Pairwise_distance, fill = Site, color = site)) +
+  
+  scale_fill_manual(values = c("burlywood3", "brown4", "aquamarine3")) +
+  
+  geom_violin(color = "black", draw_quantiles = 0.5) +
+  
+  ylab("Distance (m) between seedlings") +
+  
+  xlab(NULL) + scale_x_discrete(labels=sites) +
+  
+  theme_set(theme_bw(base_size = 11, base_family = 'Times New Roman')) + 
+  theme(legend.title = element_blank()) + theme(legend.position = "none")
+
+sdl.sdl.plot
+
+#ggsave(sdl.adult.dist.plot, file = "plots/seedling_adult_distances.jpg", height = 3, width = 4)
+
+# clean
+rm(sdl.adult.dist.df, sdl.adult.dist.plot)
+
+```
+
+## PPA and Ripleys K
+
+This procedure follows much of a helpful tutorial here: https://www.mattpeeples.net/modules/PointPattern.html
+
+### Get Point Patterns
+
+```{r make PPP objects, warning=FALSE}
+
+df.mapping <- read.csv("data-in/Spatial_sites_master.csv")
+
+w <- owin(c(0,200), c(0,200), unitname=c("meter","meters"))
+
+# make PPP objects
+
+# RA
+RA.pp <- ppp(x = df.mapping$X[which(df.mapping$site=="RA")], y = df.mapping$Y[which(df.mapping$site=="RA")], window = w, marks = as.factor( df.mapping$stage[which(df.mapping$site=="RA")]))
+
+# LA
+
+LA.pp <- ppp(x = df.mapping$X[which(df.mapping$site=="LA")], y = df.mapping$Y[which(df.mapping$site=="LA")], window = w, marks = as.factor( df.mapping$stage[which(df.mapping$site=="LA")]))
+
+# TRC
+
+TRC.pp <- ppp(x = df.mapping$X[which(df.mapping$site=="TRC")], y = df.mapping$Y[which(df.mapping$site=="TRC")], window = w, marks = as.factor( df.mapping$stage[which(df.mapping$site=="TRC")]))
+
+```
+
+There are geographical features and probably other environmental/habitat characteristics that lead to inhomogeneity in the data, which means it isn't appropriate to assume homogeneous Poisson point processes in computing our null models for determining if clustering is significantly greater than expected. 
+
+```{r assess data homogeneity}
+par(mfrow = c(1, 3))  # set up to plot 3 plots on one row
+# plot density at various levels of sigma
+plot(density(RA.pp), main = "RA")
+plot(density(LA.pp), main = "LA")
+plot(density(TRC.pp), main = "TRC")
+
+quadrat.test(RA.pp, nx = 10, ny = 10, method = "MonteCarlo")
+quadrat.test(LA.pp, nx = 10, ny = 10, method = "MonteCarlo")
+quadrat.test(TRC.pp, nx = 10, ny = 10, method = "MonteCarlo")
+
+```
+
+Data is, as expected, inhomogenous (also damn despite our best efforts, it truly looks like there are edge effects.... trampling or less search effort somehow.)
+
+Next, calculate the Ripley’s K function and plot the results. Ripley’s K is a method of determining whether a point pattern deviates from complete spatial randomness (CSR) at a given distance. 
+
+Use the Kest function from the spatstat package. Use the “Ripley” correction factor that helps us deal with edge effects. "Simulate the potential effects of sampling by creating what is called an “envelope” from the actual data. Specifically, this procedure involves simulating some number of datasets by permuting the locations of input data (99 times by default) and then obtaining the range of K-hat values across a range of distances for each permuted dataset. We can then plot the K estimates at each distance for the original data along with the “envelope” showing the range for the simulated datasets."
+
+Values above the theoretical, random null model line and shaded CI area indicate clustering and values below the line indicate dispersion.
+
+Calc K functions for within and between cohort analyses for each site and build into a df for plotting.
+
+### Univariate K functions
+
+#### Seedlings-Seedlings
+
+```{r build k est df seedling seedling pairs}
+
+# get kest for seedling-seedling pairs
+
+# RA
+RA.sdx2 <- as.data.frame(envelope(RA.pp[RA.pp$marks == "seedling"], Kinhom, nsim = 999,
+    correction = "border", verbose = F))
+
+RA.sdx2$pairs <- "seedling-seedling"
+RA.sdx2$site <- "RA"
+
+# LA
+LA.sdx2 <- as.data.frame(envelope(LA.pp[LA.pp$marks == "seedling"], Kinhom, nsim = 999,
+    correction = "border", verbose = F))
+
+LA.sdx2$pairs <- "seedling-seedling"
+LA.sdx2$site <- "LA"
+
+# TRC
+TRC.sdx2 <- as.data.frame(envelope(TRC.pp[TRC.pp$marks == "seedling"], Kinhom, nsim = 999,
+    correction = "Ripley", verbose = F))
+
+TRC.sdx2$pairs <- "seedling-seedling"
+TRC.sdx2$site <- "TRC"
+
+# bring together 
+
+sd2sd.uni.env <- rbind(RA.sdx2, LA.sdx2,TRC.sdx2)
+
+```
+
+Plot seedling-seedling k functions relative to inhom CSR
+
+```{r plots sd2sd k and inhom CSR}
+
+sd.uni.p <- sd2sd.uni.env %>%
+  
+  mutate(site= fct_relevel(site, c("RA","LA","TRC"))) %>%
+  
+  arrange(site) %>% 
+  
+  filter(r < 25) %>%
+  
+  ggplot(aes(x = r, y = obs, color = site, linetype = site)) +
+  
+ scale_color_manual(values = c("brown4", "burlywood4", "aquamarine4")) +
+  geom_line() +
+  scale_linetype_manual(values = c("solid", "dotdash", "longdash")) + theme_bw() + ylab('K(r)') +
+
+  theme(axis.title = element_text(size = 10, color = "black"),
+        axis.text = element_text(size = 10, color = "black"),
+        axis.title.x = element_text (face = "italic")) +
+  
+  geom_ribbon(aes(ymin = lo, ymax = hi, fill = site), alpha = 0.25, color = NA) + 
+  
+  scale_fill_manual(values = c("brown4", "burlywood4", "aquamarine4")) + ggtitle("Within-cohort seedling clustering") + theme(legend.title = element_blank())  + theme(plot.title = element_text(size = 12))
+  
+sd.uni.p
+
+#ggsave(sd.uni.p, file = "plots/sd.uni.p.jpg", height = 3, width = 5)
+
+```
+
+#### Adults-Adults
+
+```{r build k est df adult adult pairs}
+
+# get kest for adult-adult pairs
+
+# RA
+RA.uni.adult <- as.data.frame(envelope(RA.pp[RA.pp$marks == "adult"], Kinhom, nsim = 999,
+    correction = "border", verbose = F))
+
+RA.uni.adult$pairs <- "adult-adult"
+RA.uni.adult$site <- "RA"
+
+# LA
+LA.uni.adult <- as.data.frame(envelope(LA.pp[LA.pp$marks == "adult"], Kinhom, nsim = 999,
+    correction = "border", verbose = F))
+
+LA.uni.adult$pairs <- "adult-adult"
+LA.uni.adult$site <- "LA"
+
+# TRC
+TRC.uni.adult <- as.data.frame(envelope(TRC.pp[TRC.pp$marks == "adult"], Kinhom, nsim = 999,
+    correction = "Ripley", verbose = F))
+
+TRC.uni.adult$pairs <- "adult-adult"
+TRC.uni.adult$site <- "TRC"
+
+# bring together 
+
+adult.uni.env <- rbind(RA.uni.adult, LA.uni.adult, TRC.uni.adult)
+
+```
+
+Plot adult univariate k functions relative to inhom CSR
+
+```{r plots adult and inhom CSR}
+
+adult.uni.p <- adult.uni.env %>%
+  
+  mutate(site= fct_relevel(site, c("RA","LA","TRC"))) %>%
+  
+  arrange(site) %>% 
+  
+  ggplot(aes(x = r, y = obs, color = site, linetype = site)) +
+  
+ scale_color_manual(values = c("brown4", "burlywood4", "aquamarine4")) +
+  geom_line() +
+  scale_linetype_manual(values = c("solid", "dotdash", "longdash")) + theme_bw() + ylab('K(r)') +
+
+  theme(axis.title = element_text(size = 10, color = "black"),
+        axis.text.y = element_text(size = 10, color = "black"),
+        axis.text.x = element_text(size = 8, color = "black"),
+        axis.title.x = element_text (face = "italic")) +
+  
+  geom_ribbon(aes(ymin = lo, ymax = hi, fill = site), alpha = 0.25, color = NA) + 
+  
+  scale_fill_manual(values = c("brown4", "burlywood4", "aquamarine4")) + ggtitle("Within-cohort adult clustering") + theme(legend.position = "none") + scale_x_continuous(breaks = seq(0,50,15))  + theme(plot.title = element_text(size = 12))
+
+p.facet <-adult.uni.p + facet_wrap(~site) 
+
+p.facet
+
+#ggsave(p.facet, file = "plots/adult.uni.p.jpg", height = 3, width = 5)
+
+```
+### Bivariate K functions
+
+The bivariate (cross) K function Kij(r) is derived by counting, for each point of type i, the number of type j points lying closer than r units away.The bivariate K function is defined as the expected number of points of pattern 1 within a distance s of an arbitrary point of pattern 2, divided by the overall density of the points in pattern 1. To estimate this function, the approximately unbiased estimator given by Lotwick and Silverman (1982) is used.
+
+#### Seedling and adult clustering
+
+Use Kcross function to get bivariate k estimates for clustering of seedlings around adults.
+
+```{r build bivariate null model and k function df seedling adult pairs}
+
+# get Kcross.inhom estimate for seedling-adult pairs
+
+# RA
+
+RA.bi <- envelope(RA.pp, Kinhom, i = "seedling", j = "adult", nsim = 999, r=0:30, ratio = TRUE, correction = "Ripley")
+
+RA.bi$K <- "bivariate"
+RA.bi$site <- "RA"
+RA.bi.df <- as.data.frame(RA.bi)
+
+LA.bi <- envelope(LA.pp, Kinhom, i = "seedling", j = "adult", nsim = 999, r=0:30, ratio = TRUE, correction = "Ripley")
+
+#plot(LA.bi)
+LA.bi$K <- "bivariate"
+LA.bi$site <- "LA"
+LA.bi.df <- as.data.frame(LA.bi)
+
+TRC.bi <- envelope(TRC.pp, Kinhom, i = "seedling", j = "adult", nsim = 999, r=0:30, ratio = TRUE, correction = "Ripley")
+
+#plot(TRC.bi)
+TRC.bi$K <- "bivariate"
+TRC.bi$site <- "TRC"
+TRC.bi.df <- as.data.frame(TRC.bi)
+
+# combine
+
+bi.df <- rbind(RA.bi.df, LA.bi.df, TRC.bi.df)
+```
+
+Plot bivariate estimates and significance envelopes
+
+```{r plot bi estimates and sig envelopes}
+
+bi.p <- bi.df %>%
+  
+  mutate(site= fct_relevel(site, c("RA","LA","TRC"))) %>%
+  
+  arrange(site) %>% 
+  
+  filter(r <25) %>%
+  
+  ggplot(aes(x = r, y = obs, color = site, linetype = site)) +
+  
+ scale_color_manual(values = c("brown4", "burlywood4", "aquamarine4")) +
+  geom_line() +
+  scale_linetype_manual(values = c("solid", "dotdash", "longdash")) + theme_bw() + ylab(K[ij]~'(r)') +
+
+  theme(axis.title = element_text(size = 10, face = "italic", color = "black"),
+        axis.text = element_text(size = 10, color = "black")) +
+  
+  geom_ribbon(aes(ymin = lo, ymax = hi, fill = site), alpha = 0.25, color = NA) + 
+  
+  scale_fill_manual(values = c("brown4", "burlywood4", "aquamarine4")) + theme(legend.title= element_blank()) + ggtitle("Between cohort clustering") + theme(plot.title = element_text(size = 12))
+  
+bi.p
+
+#ggsave(bi.p, file = "plots/bi.plot.jpg", height = 3, width = 5)
+```
+
+
+```{r make a fanel figure of spatial results, warning=FALSE}
+
+spatial.panel <- grid.arrange(ncol = 2, sd.uni.p, p.facet, bi.p, sdl.adult.dist.plot)
+
+#ggsave(spatial.panel, file = "plots/spatial_panel.jpg", height = 5, width = 8)
+
+```
+
+## Sample size
+
+How many individuals of each cohort were in each plot?
+
+```{r n per cohort in plots}
+# look at number of seedlings per plot that I have in full mapping df
+full.mapping.df %>%
+  group_by(site, stage) %>%
+  summarize(total_num_individuals = n())
+
+```
+
+What are the sample sizes for n successfully genotyped per cohort per site?
+
+```{r data overview, warning=FALSE, message=FALSE}
+
+# Number of plants per site used in genetic analysis
+plants <- genepop %>%
+  group_by(PLOT, STAGE) %>%
+  summarize(count = n())
+
+plants
+```
+
+In the defaunated site, Reserva Amazonica, there were  **`r plants[3,3]`** adults, while the intermediate site, Los Amigos, had **`r plants[1,3]`** adults and the faunally-intact site, the Tambopata Research Center, had **`r plants[5,3]`** adults.
+
+I aimed for 125 seedlings randomly selected per plot. Ultimately, successful extraction and amplification gave sample sizes of **`r plants[4,3]`** seedlings for Reserva Amazonica, **`r plants[2,3]`** in Los Amigos, and **`r plants[6,3]`** at the Tambopata Research Center. 
+
+Save the cleaned dataset
+```{r save cleaned df}
+# clean 
+rm(plants)
+
+#write.csv(genepop, file = "data-out/Euterpe_precatoria_cleaned_data.csv", row.names = FALSE)
+```
+
+# Marker Quality Checks
+
+** Overview:**
+
+* examine data for null alleles 
+* examine data for significant departures from HWE
+* test for linkage disequilibrium
+* review data for allele calling error (this is data input from elsewhere)
+* notes on marker issues
+
+## Null allele frequencies
+
+A null allele is an allele at a microsatellite locus that does not amplify to detectable levels during PCR. 
+
+  * Null alleles occur when: 
+  
+    * mutations in the binding site of the targeted DNA sequence prevent the efficient annealing of at least one primer resulting in failure of amplification during the PCR reaction. 
+    * differential amplification of size-variant alleles (Wattier et al, 1998).
+    * Note there are true biological factors such as Wahlund effect or inbreeding that can cause significant heterozygote deficits relative to Hardy–Weinberg equilibrium (HWE) that might be misconstrued as evidence for null alleles (Chakraborty et al, 1992).
+
+**Compute null allele frequency estimates**
+
+GenePop estimates null allele frequencies using maximum likelihood assuming that there is null allele (Dempster method). Genepop takes the allele with the highest number for a given locus across all populations as the null allele.
+
+```{r get null allele frequences using genepop}
+
+#nulls('data-out/genepop_format_sites.sep.cohorts.pooled.txt', 'results/null_allele_frequencies.txt')
+
+```
+
+Each population was analyzed separately for null allele dropout (adult and seedling stages were pooled in each site). 
+
+The maximum-likelihood method with iterative expectation-maximization algorithm of Dempster et al. (1977) implemented in genepop yielded average null allele frequency estimates ranging from 0-0.18
+
+## Test for Hardy-Weinberg Equilibrium
+
+Hardy-Weinberg Equilibrium (HWE) theorem states that allele frequencies in a population will not change from generation to generation. The HWE theorem only applies when the following are true: 
+
+  **1.** Natural dplyr::selection is not acting on the locus in question (i.e., there are no consistent differences in probabilities of survival or reproduction among genotypes).
+  
+  **2.** Neither mutation (the origin of new alleles) nor migration (the movement of individuals and their genes into or out of the population) is introducing new alleles into the population.
+  
+  **3.** Population size is infinite, which means that genetic drift is not causing random changes in allele frequencies due to sampling error from one generation to the next. Of course, all natural populations are finite and thus subject to drift, but we expect the effects of drift to be more pronounced in small than in large populations.
+  
+  **4.** Individuals in the population mate randomly with respect to the locus in question. Although nonrandom mating does not change allele frequencies from one generation to the next if the other assumptions hold, it can generate deviations from expected genotype frequencies, and it can set the stage for natural dplyr::selection to cause evolutionary change.
+  
+I am using GenePop program through R to test if my loci (there are 9) in each population (there are 3) significantly deviate from HWE expectations. The equation that dictates these expectations of allele frequencies in populations is:  p^2 + 2pq + q^2 = 1
+
+
+p^2	=	dominant homozygous frequency (AA)
+
+
+2pq	=	heterozygous frequency (Aa)
+
+
+q^2	=	recessive homozygous frequency (aa)
+
+
+The function *HW_test* used below implements two algorithms: 
+
+  **1.** a Markov chain method to estimate without bias exact pval (Geo and Thomspson (1992). 
+  
+  **2.** complete enumeration described by Louis and Dempster (1987) - this works for less than 5 alleles and calculates an exact p val and no standard error (the function implements one of the two for each loci case depending on how many alleles exist in the population there).
+
+The function is testing the null hypothesis Ho (= random union of gametes). The primary version of this test I am concerned with is the Probability-test: the probability of the observed sample is used to define the rejection zone, and the P-value of the test corresponds to the sum of the probabilities of all tables (with the same allelic counts) with the same or lower probability. This is the "exact HW test" of Haldane (1954), Weir (1990b), Guo and Thompson (1992) and others. 
+
+When the alternative hypothesis (H1) of interest is heterozygote excess or deficiency, more powerful tests than the probability-test can be used (see Rousset and Raymond, 1995). One of them, the score test (U test), is available here, either for H1 = heterozygote deficiency or H1 = heterozygote excess. I run this and also save these outputs below. Defaults for the test_HW function work for our purposes.
+
+```{r test HWE departure}
+# probability test for HWE departure
+
+#test_HW('data-out/genepop_format_sites.sep.cohorts.pooled.txt', which = "Proba",'results/HW_probability.txt')
+```
+
+Read in HWE results and perform Bonferroni corrections.
+
+```{r read in HWE results and transform p vals}
+HWE <- read.csv("results/HWE_results.csv")
+
+HWE$p_corrected<-p.adjust(HWE$p_uncorrected, method = "bonferroni")
+
+# save
+#write.csv(HWE, file = "results/HWE_results.csv", row.names = FALSE)
+```
+
+## Test for Linkage Disequilibrium (LD)
+
+Use Genepop again to test for correlations between alleles at different loci, which violates the assumption that each is independent and creates pseudo-replication of loci.
+
+```{r LDE tests}
+#test_LD('data-out/genepop_format_sites.sep.cohorts.pooled.txt', 'results/LDE_output.txt')
+```
+
+Pull in key results and format and adjust p values for multiple comparisons.
+
+```{r LDE output format and p correction sites as sep, warning=FALSE}
+
+# read in the txt file
+ld <- read.delim("results/LDE_output.txt", header= TRUE)
+
+# look at LD in each site
+ld.RA <- as.data.frame(ld[c(13:33),]) # isolate lines of data pertaining to each site separately
+ld.LA <- as.data.frame(ld[c(34:54),])
+ld.TRC <- as.data.frame(ld[c(55:75),])
+
+ld.RA$site <- "RA" # add site column
+ld.LA$site <- "LA"
+ld.TRC$site <- "TRC"
+
+# #separate out into columns I want
+ld.RA <- ld.RA %>% 
+separate(1, into = c('remove.me', 'locus1'), sep = 12) %>% 
+ separate(locus1, into = c('locus1', 'locus2'), sep = 11) %>% 
+ separate(locus2, into = c('locus2', 'pval_uncorrected'), sep = 11) %>% 
+ separate(pval_uncorrected, into = c('pval_uncorrected', 'SE'), sep = 12) %>%  separate(SE, into = c('SE', 'steps'), sep = 12) 
+
+ld.LA <- ld.LA %>% 
+separate(1, into = c('remove.me', 'locus1'), sep = 12) %>% 
+ separate(locus1, into = c('locus1', 'locus2'), sep = 11) %>% 
+ separate(locus2, into = c('locus2', 'pval_uncorrected'), sep = 11) %>% 
+ separate(pval_uncorrected, into = c('pval_uncorrected', 'SE'), sep = 12) %>%  separate(SE, into = c('SE', 'steps'), sep = 12) 
+
+
+ld.TRC<- ld.TRC %>% 
+separate(1, into = c('remove.me', 'locus1'), sep = 12) %>% 
+ separate(locus1, into = c('locus1', 'locus2'), sep = 11) %>% 
+ separate(locus2, into = c('locus2', 'pval_uncorrected'), sep = 11) %>% 
+ separate(pval_uncorrected, into = c('pval_uncorrected', 'SE'), sep = 12) %>%  separate(SE, into = c('SE', 'steps'), sep = 12) 
+
+
+# column select
+ld.RA <- ld.RA %>%
+  select(locus1, locus2, pval_uncorrected, site)
+
+ld.LA <- ld.LA %>%
+  select(locus1, locus2, pval_uncorrected, site)
+
+ld.TRC <- ld.TRC %>%
+  select(locus1, locus2, pval_uncorrected, site)
+
+# get rid of white spaces
+ld.RA <- as.data.frame(sapply(ld.RA, trimws))
+ld.LA <- as.data.frame(sapply(ld.LA, trimws))
+ld.TRC <- as.data.frame(sapply(ld.TRC, trimws))
+
+# use Bonferroni correction
+ld.RA$pval_corrected <- p.adjust(ld.RA$pval_uncorrected, method = "bonferroni")
+ld.LA$pval_corrected <- p.adjust(ld.LA$pval_uncorrected, method = "bonferroni")
+ld.TRC$pval_corrected <-p.adjust(ld.TRC$pval_uncorrected, method = "bonferroni")
+
+
+# join
+ld.sites <- rbind(ld.RA, ld.LA, ld.TRC)
+
+# clean 
+rm(ld.RA, ld.LA, ld.TRC)
+
+# display
+ld.sites
+
+```
+
+**Linkage disequilibrium test results summary**
+
+* No markers show LDE in all sites
+* Ep32 and Ep02 in LA show linkage disequilibrium
+* Ep32 and Ep02 in TRC show linkage disequilibrium
+* Ep03 and Ep06 in RA show linkage disequilibrium
+
+## Allele identification error rates
+
+We re-amplified and re-genotyped approximately 6.5% of our samples (28 individuals) to assess allele identification error rates. This consisted of re-calling alleles for the subset of individuals we re-amplified, counting the number of alleles called inconsistently, and dividing this by the total number of alleles successfully re-run for that loci to obtain the allele typing error rate per locus. Mean allele typing error per locus was 0.44% (2 alleles differed out of 458 that were re-run and called twice), a rate lower than or consistent with data used in similar studies (e.g. Browne et al., 2015; Giombini et al., 2017, 2016).
+
+# Genetic diversity and inbreeding
+
+First organize and run basic functions.
+
+Overall basic stats info:
+
+```{r basic stats info}
+
+# overall loci He, Hs, Fis
+
+# make allele info numeric
+hierf.pooled[6:12] <- lapply(hierf.pooled[6:12], as.numeric)
+# get basic stats
+basic.stats.pooled <- basic.stats(hierf.pooled[c(4,6:12)])
+# also pull out info on allele frequencies
+allele.counts.pooled<- allele.count(hierf.pooled[-c(1:3,5)], diploid = TRUE)
+```
+
+Seedlings basic stats info:
+```{r seedlings basic stats info}
+# repeat with seedlings
+
+# seedling loci He, Hs, Fis
+hierf.seedlings[6:12] <- lapply(hierf.seedlings[6:12], as.numeric)
+
+basic.stats.seedlings <- basic.stats(hierf.seedlings[c(4,6:12)])
+```
+
+Adults basic stats info. Note, *2 loci were not polymorphic for adults in 1 site each:*
+LA doesn't have EP35 because it wasn't polymorphic at that locus
+TRC only had 1 genotype for EP02
+
+```{r adults basic stats info}
+
+# repeat with adults
+Ep02 <- hierf.adults %>%
+  group_by(PLOT) %>%
+reframe(genotypes = unique(EPR02))
+
+Ep35 <- hierf.adults %>%
+  group_by(PLOT) %>%
+reframe(genotypes = unique(EPR35))
+
+hierf.adults.noEp02Ep35 <- hierf.adults %>%
+  dplyr::select(-c(EPR02, EPR35))
+
+# Get adult per loci He, Hs, Fis
+
+# first make numeric
+hierf.adults[6:12] <- lapply(hierf.adults[6:12], as.numeric)
+hierf.adults.noEp02Ep35[6:10] <- lapply(hierf.adults.noEp02Ep35[6:10], as.numeric)
+
+basic.stats.adults.noEp02Ep35 <- basic.stats(hierf.adults.noEp02Ep35[c(4,6:10)])
+
+basic.stats.adults <- basic.stats(hierf.adults[c(4,6:12)])
+```
+
+Continue summarizing data...
+
+Look at n alleles per locus.
+
+```{r n alleles per locus}
+
+# loop to get n alleles per locus
+
+output <- NULL
+
+n_alleles_per_marker <- as.data.frame(matrix(ncol = 2, nrow = 7, 
+                                             dimnames = list(NULL, c("locus", "n_alleles"))))
+
+for(i in 1:nrow(n_alleles_per_marker)) {
+n_alleles_per_marker[i,1] <- names(allele.counts.pooled[i])
+output <- as.data.frame(allele.counts.pooled[[i]])
+n_alleles_per_marker[i,2] <- output %>%
+  summarise(n_alleles = n_distinct(x))
+}
+
+rm(output,i)
+
+#display
+n_alleles_per_marker
+
+# clean
+rm(n_alleles_per_marker, allele.counts.pooled)
+```
+
+```{r n individuals genotyped per marker per site per cohort}
+
+EPR02.seedlings <- hierf.seedlings[c(3:5, 11)] %>% # select stage, id, site column and the EPR02 column
+  filter(STAGE == "SEEDLING") %>%
+  filter(!is.na(EPR02)) 
+
+EPR02.seedlings <- EPR02.seedlings %>%
+  group_by(PLOT) %>%
+  summarise(n_seedlings = n_distinct(SAMPLEID))
+
+EPR02.seedlings$Locus <- "EPR02"
+
+EPR03.seedlings <- hierf.seedlings[c(3:5,8)] %>% # select stage, id, site column and the EPR03 column
+  filter(STAGE == "SEEDLING") %>%
+  group_by(PLOT) %>%
+  na.omit() %>%
+  summarise(n_seedlings = n_distinct(SAMPLEID))
+
+EPR03.seedlings$Locus <- "EPR03"
+
+EPR05.seedlings <- hierf.seedlings[c(3:5,6)] %>%
+  filter(STAGE == "SEEDLING") %>%
+  group_by(PLOT) %>%
+  na.omit() %>%
+  summarise(n_seedlings = n_distinct(SAMPLEID))
+
+EPR05.seedlings$Locus <- "EPR05"
+
+EPR06.seedlings <- hierf.seedlings[c(3:5,12)] %>%
+  filter(STAGE == "SEEDLING") %>%
+  group_by(PLOT) %>%
+  na.omit() %>%
+  summarise(n_seedlings = n_distinct(SAMPLEID))
+
+EPR06.seedlings$Locus <- "EPR06"
+
+EPR32.seedlings <- hierf.seedlings[c(3:5,9)] %>%
+  filter(STAGE == "SEEDLING") %>%
+  group_by(PLOT) %>%
+  na.omit() %>%
+  summarise(n_seedlings = n_distinct(SAMPLEID))
+
+EPR32.seedlings$Locus <- "EPR32"
+
+EPR35.seedlings <- hierf.seedlings[c(3:5,10)] %>%
+  filter(STAGE == "SEEDLING") %>%
+  group_by(PLOT) %>%
+  na.omit() %>%
+  summarise(n_seedlings = n_distinct(SAMPLEID))
+
+EPR35.seedlings$Locus <- "EPR35"
+
+EPR08.seedlings <- hierf.seedlings[c(3:5,7)] %>%
+  filter(STAGE == "SEEDLING") %>%
+  group_by(PLOT) %>%
+  na.omit() %>%
+  summarise(n_seedlings = n_distinct(SAMPLEID))
+
+EPR08.seedlings$Locus <- "EPR08"
+
+# bring them together
+
+n_seedlings_genotyped_per_marker_per_site <- rbind(EPR02.seedlings, EPR03.seedlings, EPR05.seedlings, EPR06.seedlings, EPR32.seedlings, EPR35.seedlings, EPR08.seedlings)
+
+# clean
+rm(EPR02.seedlings, EPR03.seedlings, EPR05.seedlings, EPR06.seedlings, EPR08.seedlings, EPR32.seedlings, EPR35.seedlings)
+
+# display
+n_seedlings_genotyped_per_marker_per_site
+
+# clean
+rm(n_seedlings_genotyped_per_marker_per_site)
+
+####
+# repeat above with adults
+###
+
+EPR03.adults <- hierf.adults[c(3:5,8)] %>% # select stage, id, site column and the EPR03 column
+  filter(STAGE == "ADULT") %>%
+  group_by(PLOT) %>%
+  na.omit() %>%
+  summarise(n_adults = n_distinct(SAMPLEID))
+
+EPR03.adults$Locus <- "EPR03"
+
+EPR05.adults <- hierf.adults[c(3:5,6)] %>%
+  filter(STAGE == "ADULT") %>%
+  group_by(PLOT) %>%
+  na.omit() %>%
+  summarise(n_adults = n_distinct(SAMPLEID))
+
+EPR05.adults$Locus <- "EPR05"
+
+EPR06.adults <- hierf.adults[c(3:5,12)] %>%
+  filter(STAGE == "ADULT") %>%
+  group_by(PLOT) %>%
+  na.omit() %>%
+  summarise(n_adults = n_distinct(SAMPLEID))
+
+EPR06.adults$Locus <- "EPR06"
+
+EPR32.adults <- hierf.adults[c(3:5,9)] %>%
+  filter(STAGE == "ADULT") %>%
+  group_by(PLOT) %>%
+  na.omit() %>%
+  summarise(n_adults = n_distinct(SAMPLEID))
+
+EPR32.adults$Locus <- "EPR32"
+
+EPR08.adults <- hierf.adults[c(3:5,7)] %>%
+  filter(STAGE == "ADULT") %>%
+  group_by(PLOT) %>%
+  na.omit() %>%
+  summarise(n_adults = n_distinct(SAMPLEID))
+
+EPR08.adults$Locus <- "EPR08"
+
+# bring them together
+
+n_adults_genotyped_per_marker_per_site <- rbind(EPR03.adults, EPR05.adults, EPR06.adults, EPR32.adults, EPR08.adults)
+
+# clean
+rm(EPR03.adults, EPR05.adults, EPR06.adults, EPR08.adults, EPR32.adults)
+
+# display
+n_adults_genotyped_per_marker_per_site
+
+# clean
+rm(n_adults_genotyped_per_marker_per_site)
+
+```
+
+After cleaning process, how many failed samples were there per marker?
+```{r updated percent failure}
+FR <- data.frame(matrix(ncol = 2, nrow = 7))
+colnames(FR) <-c("Marker", "Percent_failed_pooled")
+markers <- c("Epr02", "Epr03", "Epr05", "Epr06", "Epr08", "Epr32","Epr35")
+FR$Marker<-markers
+
+percent_failed <- c(length(genepop$EPR02_A[which(genepop$EPR02_A == "000")])/nrow(genepop)*100, length(genepop$EPR03_A[which(genepop$EPR03_A=="000")])/nrow(genepop)*100, length(genepop$EPR05_A[which(genepop$EPR05_A=="000")])/nrow(genepop)*100,
+length(genepop$EPR06_A[which(genepop$EPR06_A=="000")])/nrow(genepop)*100, length(genepop$EPR08_A[which(genepop$EPR08_A=="000")])/nrow(genepop)*100, length(genepop$EPR32_A[which(genepop$EPR32_A=="000")])/nrow(genepop)*100, length(genepop$EPR35_A[which(genepop$EPR35_A=="000")])/nrow(genepop)*100)
+
+FR$Percent_failed_pooled <- percent_failed                    
+#display
+FR
+# clean
+rm(percent_failed, Ep02, Ep35)
+```
+
+# Genetic diversity and inbreeding
+
+## ***Ar*** allelic richness
+
+Use hierfstat function allelic.richness to estimate allelic richness and the rarefied allelic counts, per locus and population.
+
+**min.all:** The number of alleles used for rarefaction.
+
+### Ar seedlings & pooled
+
+Compute rarified allelic richness for seedlings and summarize:
+
+```{r get rarified allelic richness for seedlings and pooled samples}
+
+Ar.pooled <- allelic.richness(hierf.pooled[c(4,6:12)], diploid = TRUE) 
+
+allelic.richness.seedlings <-allelic.richness(hierf.seedlings[c(4,6:12)], min.n = 230, diploid = TRUE)
+
+# n individuals rarified to:
+n.seedlings <- allelic.richness.seedlings$min.all/2
+
+# get seedling allelic richness into a workable format
+
+# pull out RA result
+allelic.richness.seedlings.1 <- allelic.richness.seedlings$Ar['RA']
+
+# add a site column 
+allelic.richness.seedlings.1$Site <- "RA"
+
+# add Ar as column name
+colnames(allelic.richness.seedlings.1)[1] <- "Ar"
+
+# repeat for LA and TRC
+allelic.richness.seedlings.2 <- allelic.richness.seedlings$Ar['LA']
+allelic.richness.seedlings.2$Site <- "LA"
+colnames(allelic.richness.seedlings.2)[1] <- "Ar"
+allelic.richness.seedlings.3 <- allelic.richness.seedlings$Ar['TRC']
+allelic.richness.seedlings.3$Site <- "TRC"
+colnames(allelic.richness.seedlings.3)[1] <- "Ar"
+
+# bring site results together
+allelic.richness.seedlings<-rbind(allelic.richness.seedlings.1, allelic.richness.seedlings.2, allelic.richness.seedlings.3)
+
+# clean
+rm(allelic.richness.seedlings.1, allelic.richness.seedlings.2, allelic.richness.seedlings.3)
+
+# summarize
+
+Ar_seedling_summary_data <- allelic.richness.seedlings %>%
+  
+  group_by(Site) %>%
+  
+  summarise(meanAr = mean(Ar),
+            sdAr = sd(Ar),
+            nAr = n()) %>%
+  mutate(seAr = sdAr / sqrt(nAr),
+         lower.ci.Ar = meanAr - qt(1 - (0.05 / 2), nAr - 1) * seAr,
+         upper.ci.Ar = meanAr + qt(1 - (0.05 / 2), nAr - 1) * seAr,
+         lower.se.Ar = meanAr - seAr,
+         upper.se.Ar = meanAr + seAr)
+
+Ar_seedling_summary_data <- Ar_seedling_summary_data  %>%
+  dplyr::select(Site, meanAr, seAr) %>%
+  mutate(Site= fct_relevel(Site, c("RA","LA","TRC"))) %>%
+  arrange(Site)
+
+Ar_seedling_summary_data
+```
+
+Seedlings were rarified to  **`r  n.seedlings`**.
+
+We have 3 groups: defaunated, intermediately-defaunated/recovering, and faunally-intact, and we have locus as a blocking factor. We can use an alternative to the repeated measures ANOVA called the Friedman Test. The Friedman test is a non-parametric alternative to the one-way repeated measures ANOVA test. It extends the Sign test in the situation where there are more than two groups to compare.
+
+Friedman test is used to assess whether there are any statistically significant differences between the distributions of three or more paired groups. It’s recommended when the normality assumptions of the one-way repeated measures ANOVA test is not met or when the dependent variable is measured on an ordinal scale. (https://www.datanovia.com/en/lessons/friedman-test-in-r/)
+
+```{r compare seedling allelic richness between sites, warning=FALSE}
+
+# clean
+rm(n.seedlings)
+
+# fix locus names
+allelic.richness.seedlings$Locus <- c("EPR05", "EPR08", "EPR03", "EPR32", "EPR35", "EPR02", "EPR06")
+
+#run friedman
+res.fried.Ar.seedlings <- allelic.richness.seedlings %>% friedman_test(Ar ~ Site|Locus)
+
+res.fried.Ar.seedlings
+rm(res.fried.Ar.seedlings)
+```
+
+
+
+
+Plot Ar in seedlings:
+
+```{r plot Ar in seedlings}
+
+# part of a panel to put into gen div and inbreeding sup mats
+#(a). Ar seedlings
+
+Ar.sds.plot <- allelic.richness.seedlings %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = Ar, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_pointrange(data = Ar_seedling_summary_data, mapping = aes(x = Site, y = meanAr, ymax = meanAr + seAr, ymin = meanAr - seAr, color = "black"), size = 0.4, shape = 17) + 
+   labs(y="A" ~italic(r)) +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("Seedling rarified allelic richness") +
+  labs(tag = "(a)") + theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank()) + theme_bw()
+
+Ar.sds.plot
+```
+
+### Ar adults
+
+Compute and summarize Ar values in adults:
+
+```{r compute Ar for adults}
+
+hierf.adults.noEp02Ep35[6:10] <- lapply(hierf.adults.noEp02Ep35[6:10], as.numeric)
+
+allelic.richness.adults <-allelic.richness(hierf.adults.noEp02Ep35[c(4,6:10)], min.n = 44, diploid = TRUE)
+
+n.adults <- allelic.richness.adults$min.all/2
+
+allelic.richness.adults1 <- allelic.richness.adults$Ar['RA']
+allelic.richness.adults1$Site <- "RA"
+colnames(allelic.richness.adults1)[1] <- "Ar"
+allelic.richness.adults2 <- allelic.richness.adults$Ar['LA']
+allelic.richness.adults2$Site <- "LA"
+colnames(allelic.richness.adults2)[1] <- "Ar"
+allelic.richness.adults3 <- allelic.richness.adults$Ar['TRC']
+allelic.richness.adults3$Site <- "TRC"
+colnames(allelic.richness.adults3)[1] <- "Ar"
+
+allelic.richness.adults <- rbind(allelic.richness.adults1, allelic.richness.adults2, allelic.richness.adults3)
+
+# clean
+rm(allelic.richness.adults1, allelic.richness.adults2, allelic.richness.adults3)
+
+# summarize
+
+Ar_adults_summary_data <- allelic.richness.adults %>%
+  
+  group_by(Site) %>%
+  
+  summarise(meanAr = mean(Ar),
+            sdAr = sd(Ar),
+            nAr = n()) %>%
+  mutate(seAr = sdAr / sqrt(nAr),
+         lower.ci.Ar = meanAr - qt(1 - (0.05 / 2), nAr - 1) * seAr,
+         upper.ci.Ar = meanAr + qt(1 - (0.05 / 2), nAr - 1) * seAr,
+         lower.se.Ar = meanAr - seAr,
+         upper.se.Ar = meanAr + seAr)
+
+Ar_adults_summary_data <- Ar_adults_summary_data  %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>%
+  dplyr::select(Site, meanAr, seAr) %>%
+  arrange(Site)
+  
+Ar_adults_summary_data
+
+```
+
+Adults were rarified to **`r  n.adults`**.
+
+Model Ar in adults:
+
+```{r adults Ar friedman test}
+
+# fix locus names
+allelic.richness.adults$Locus <- c("EPR05", "EPR08", "EPR03", "EPR32", "EPR06")
+
+#run friedman
+res.fried.Ar.adults <- allelic.richness.adults %>% friedman_test(Ar ~ Site|Locus)
+
+res.fried.Ar.adults
+
+rm(res.fried.Ar.adults)
+```
+
+No differences that are significant. Models pass assumptions.
+
+Plot Ar in adults:
+
+```{r plot Ar in adults}
+
+# part of panel for supp mats for adults of gen div metrics
+# (a). Ar adults
+
+Ar.adult.plot <- allelic.richness.adults %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = Ar, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_pointrange(data = Ar_adults_summary_data, mapping = aes(x = Site, y = meanAr, ymax = meanAr + seAr, ymin = meanAr - seAr, color = "black"), size = 0.4, shape = 17) + 
+   labs(y="A" ~italic(r)) +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("Adult rarified allelic richness") +
+  labs(tag = "(a)") + theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank())
+
+Ar.adult.plot
+```
+
+Clean
+
+```{r remove Ar related dfs}
+rm(allelic.richness.adults, allelic.richness.seedlings, Ar_adults_summary_data, Ar_seedling_summary_data)
+```
+
+## ***NAe***
+
+Number of effective alleles, this is computed with the other SPAGeDi analysis.
+
+### NAe Seedlings
+
+Get seedling NAe from SPAGeDi output and compute summary data:
+
+```{r NAe seedlings spag data}
+# make sure NAe is numeric
+
+sdlg.SPAG.stats$NAe <- as.numeric(sdlg.SPAG.stats$NAe)
+
+NAe_seedling_summary_data <- sdlg.SPAG.stats %>%
+  filter(locus != "multilocus_average") %>%
+  dplyr::select(NAe, Site) %>%
+  group_by(Site) %>%
+  summarise(meanNAe = mean(NAe),
+            sdNAe = sd(NAe),
+            nNAe = n()) %>%
+  mutate(seNAe = sdNAe / sqrt(nNAe),
+         lower.ci.NAe = meanNAe - qt(1 - (0.05 / 2), nNAe - 1) * seNAe,
+         upper.ci.NAe = meanNAe + qt(1 - (0.05 / 2), nNAe - 1) * seNAe,
+         lower.se.NAe = meanNAe - seNAe,
+         upper.se.NAe = meanNAe + seNAe)
+
+NAe_seedling_summary_data <- NAe_seedling_summary_data %>%
+  dplyr::select(Site, meanNAe, seNAe) %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>%
+  arrange(Site)
+  
+NAe_seedling_summary_data
+
+```
+
+Model differences in NAe in seedlings across sites:
+
+```{r seedling NAe friedman}
+
+#run friedman
+res.fried.NAe.seedlings <- sdlg.SPAG.stats  %>% 
+  filter(locus != "multilocus_average") %>%
+  friedman_test(NAe ~ Site|locus)
+
+res.fried.NAe.seedlings
+
+rm(res.fried.NAe.seedlings)
+```
+
+Plot NAe in seedlings:
+
+```{r plot seedling NAe}
+
+# part of the supp mats panel figure
+
+NAe.sds.plot <- sdlg.SPAG.stats %>%
+  filter(locus !="multilocus_average") %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = NAe, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_pointrange(data = NAe_seedling_summary_data, mapping = aes(x = Site, y = meanNAe, ymax = meanNAe + seNAe, ymin = meanNAe - seNAe, color = "black"), size = 0.4, shape = 17) + 
+   labs(y="NAe") +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("Seedling NAe (effective number of alleles)") +
+  labs(tag = "(b)") + theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank())
+
+NAe.sds.plot
+
+```
+
+
+### NAe Adults
+
+Pull in adult NAe data from SPAGeDi output and summarize:
+
+```{r NAe adults spag data}
+
+# make sure NAe is numeric
+
+adult.SPAG.stats$NAe <- as.numeric(adult.SPAG.stats$NAe)
+
+NAe_adult_summary_data <- adult.SPAG.stats %>%
+  filter(locus != "multilocus_average") %>%
+  select(NAe, Site) %>%
+  group_by(Site) %>%
+  summarise(meanNAe = mean(NAe),
+            sdNAe = sd(NAe),
+            nNAe = n()) %>%
+  mutate(seNAe = sdNAe / sqrt(nNAe),
+         lower.ci.NAe = meanNAe - qt(1 - (0.05 / 2), nNAe - 1) * seNAe,
+         upper.ci.NAe = meanNAe + qt(1 - (0.05 / 2), nNAe - 1) * seNAe,
+         lower.se.NAe = meanNAe - seNAe,
+         upper.se.NAe = meanNAe + seNAe)
+
+NAe_adult_summary_data <- NAe_adult_summary_data %>%
+  select(Site, meanNAe, seNAe) %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>%
+  arrange(Site)
+  
+NAe_adult_summary_data
+
+```
+
+Test for differences in NAe in adults between sites
+
+```{r adult NAe friedman test}
+#run friedman
+res.fried.NAe.adults <- adult.SPAG.stats  %>% 
+  filter(locus != "multilocus_average") %>%
+  friedman_test(NAe ~ Site|locus)
+
+res.fried.NAe.adults
+```
+
+Plot NAe of adults:
+
+```{r plot NAe adults}
+# part of supp mats panel figure (b) NAe adults
+
+NAe.adult.plot <- adult.SPAG.stats %>%
+  filter(locus !="multilocus_average") %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = NAe, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_pointrange(data = NAe_seedling_summary_data, mapping = aes(x = Site, y = meanNAe, ymax = meanNAe + seNAe, ymin = meanNAe - seNAe, color = "black"), size = 0.4, shape = 17) + 
+   labs(y="NAe") +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("Adult NAe (effective number of alleles)") +
+  labs(tag = "(b)") + theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank())
+
+NAe.adult.plot
+
+```
+
+
+Clean NAe related dfs:
+
+```{r clean NAE}
+rm(NAe_adult_summary_data, NAe_seedling_summary_data, adult.SPAG.stats, sdlg.SPAG.stats)
+
+```
+
+## ***Ho*** Observed heterozygosity
+
+### Ho seedlings
+
+Compute and summarize seedling Ho:
+
+```{r seedling observered heterozygosity Ho}
+
+basic.stats.seedlings <- basic.stats(hierf.seedlings[c(4,6:12)])
+
+Ho.seedlings<- as.data.frame(basic.stats.seedlings$Ho)
+
+Ho.seedlings <- Ho.seedlings %>%
+  rownames_to_column("locus")
+
+Ho.seedlings.RA <- as.data.frame(Ho.seedlings %>% dplyr::select(RA, locus))
+
+Ho.seedlings.RA$Site <- "RA"
+
+Ho.seedlings.LA <- as.data.frame(Ho.seedlings %>% dplyr::select(LA, locus))
+Ho.seedlings.LA$Site <- "LA"
+
+Ho.seedlings.TRC <- as.data.frame(Ho.seedlings %>% dplyr::select(TRC, locus))
+Ho.seedlings.TRC$Site <- "TRC"
+
+colnames(Ho.seedlings.RA)[1] <- "Ho"
+colnames(Ho.seedlings.LA)[1] <- "Ho"
+colnames(Ho.seedlings.TRC)[1] <- "Ho"
+
+Ho.seedlings.df <- rbind(Ho.seedlings.RA, Ho.seedlings.LA, Ho.seedlings.TRC)
+
+# clean
+rm(Ho.seedlings.RA, Ho.seedlings.LA, Ho.seedlings.TRC)
+
+# summarize
+
+Ho_seedling_summary_data <- Ho.seedlings.df %>%
+  
+  group_by(Site) %>%
+  
+  summarise(meanHo = mean(Ho),
+            sdHo = sd(Ho),
+            nHo = n()) %>%
+  mutate(seHo = sdHo / sqrt(nHo),
+         lower.ci.Ho = meanHo - qt(1 - (0.05 / 2), nHo - 1) * seHo,
+         upper.ci.Ho = meanHo + qt(1 - (0.05 / 2), nHo - 1) * seHo,
+         lower.se.Ho = meanHo - seHo,
+         upper.se.Ho = meanHo + seHo)
+
+Ho_seedling_summary_data <- Ho_seedling_summary_data %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>%
+  select(Site, meanHo, seHo)%>%
+  arrange(Site)
+Ho_seedling_summary_data
+
+```
+
+Test Ho in seedlings:
+
+```{r test Ho seedlings}
+
+#run friedman
+res.fried.Ho.seedlings <- Ho.seedlings.df  %>% 
+  friedman_test(Ho ~ Site|locus)
+
+res.fried.Ho.seedlings
+```
+
+Plot Ho in seedlings:
+
+```{r plot Ho seedlings}
+# part of supp mats panel figure
+#(c) Ho seedlings
+Ho.sds.plot <- Ho.seedlings.df %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = Ho, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_pointrange(data = Ho_seedling_summary_data, mapping = aes(x = Site, y = meanHo, ymax = meanHo + seHo, ymin = meanHo - seHo, color = "black"), size = 0.4, shape = 17) + 
+   labs(y="H" ~italic(o)) +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("Seedling observed heterozygosity") +
+  labs(tag = "(c)") + theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank())
+
+Ho.sds.plot
+```
+
+### Ho adults
+
+Compute and summarize adult Ho:
+
+```{r get Ho for adults}
+
+basic.stats.adults <- basic.stats(hierf.adults.noEp02Ep35[c(4,6:10)])
+
+Ho.adults <- as.data.frame(basic.stats.adults$Ho)
+
+Ho.adults <- Ho.adults %>%
+  rownames_to_column("locus")
+
+Ho.adults.RA <- as.data.frame(Ho.adults %>% dplyr::select(RA, locus))
+
+Ho.adults.RA$Site <- "RA"
+
+Ho.adults.LA <- as.data.frame(Ho.adults %>% dplyr::select(LA, locus))
+Ho.adults.LA$Site <- "LA"
+
+Ho.adults.TRC <- as.data.frame(Ho.adults %>% dplyr::select(TRC, locus))
+Ho.adults.TRC$Site <- "TRC"
+
+colnames(Ho.adults.RA)[1] <- "Ho"
+colnames(Ho.adults.LA)[1] <- "Ho"
+colnames(Ho.adults.TRC)[1] <- "Ho"
+
+Ho.adults.df <- rbind(Ho.adults.RA, Ho.adults.LA, Ho.adults.TRC)
+
+# clean
+rm(Ho.adults.RA, Ho.adults.LA, Ho.adults.TRC)
+
+# summarize
+Ho_adult_summary_data <- Ho.adults.df %>%
+  
+  group_by(Site) %>%
+  
+  summarise(meanHo = mean(Ho),
+            sdHo = sd(Ho),
+            nHo = n()) %>%
+  mutate(seHo = sdHo / sqrt(nHo),
+         lower.ci.Ho = meanHo - qt(1 - (0.05 / 2), nHo - 1) * seHo,
+         upper.ci.Ho = meanHo + qt(1 - (0.05 / 2), nHo - 1) * seHo,
+         lower.se.Ho = meanHo - seHo,
+         upper.se.Ho = meanHo + seHo)
+
+Ho_adult_summary_data <- Ho_adult_summary_data %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>%
+  select(Site, meanHo, seHo)%>%
+  arrange(Site)
+
+Ho_adult_summary_data
+
+```
+
+Test Ho in adults:
+
+```{r test Ho in adults}
+#run friedman
+res.fried.Ho.adults <- Ho.adults.df  %>% 
+  friedman_test(Ho ~ Site|locus)
+
+res.fried.Ho.adults
+```
+
+Plot Ho in adults:
+
+```{r plot adult Ho}
+
+# part of supp mats panel figure
+#2. (c) Ho adults
+Ho.adult.plot <- Ho.adults.df %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = Ho, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_pointrange(data = Ho_adult_summary_data, mapping = aes(x = Site, y = meanHo, ymax = meanHo + seHo, ymin = meanHo - seHo, color = "black"), size = 0.4, shape = 17) + 
+   labs(y="H" ~italic(o)) +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("Adult observed heterozygosity") +
+  labs(tag = "(c)") + theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank())
+
+Ho.adult.plot
+```
+
+Clean Ho related dfs:
+
+```{r clean Ho dfs}
+rm(Ho.adults, Ho.adults.df, Ho_adult_summary_data, Ho_seedling_summary_data, Ho.seedlings, Ho.seedlings.df)
+```
+
+## ***Hs***
+
+Hs is also called expected heterozygosity (also denoted by "He") or gene diversity. 
+
+### Hs seedlings
+
+Compute and summarize seedling Hs:
+
+```{r get hierfstat estimated expected heterozygosity Hs}
+
+Hs.seedlings<- as.data.frame(basic.stats.seedlings$Hs)
+
+Hs.seedlings <- Hs.seedlings %>%
+  rownames_to_column("locus")
+
+Hs.seedlings.RA <- as.data.frame(Hs.seedlings %>% dplyr::select(RA, locus))
+
+Hs.seedlings.RA$Site <- "RA"
+
+Hs.seedlings.LA <- as.data.frame(Hs.seedlings %>% dplyr::select(LA, locus))
+Hs.seedlings.LA$Site <- "LA"
+
+Hs.seedlings.TRC <- as.data.frame(Hs.seedlings %>% dplyr::select(TRC, locus))
+Hs.seedlings.TRC$Site <- "TRC"
+
+colnames(Hs.seedlings.RA)[1] <- "Hs"
+colnames(Hs.seedlings.LA)[1] <- "Hs"
+colnames(Hs.seedlings.TRC)[1] <- "Hs"
+
+Hs.seedlings.df <- rbind(Hs.seedlings.RA, Hs.seedlings.LA, Hs.seedlings.TRC)
+
+# clean
+rm(Hs.seedlings.RA, Hs.seedlings.LA, Hs.seedlings.TRC)
+
+# summarize
+Hs_seedling_summary_data <- Hs.seedlings.df %>%
+  
+  group_by(Site) %>%
+  
+  summarise(meanHs = mean(Hs),
+            sdHs = sd(Hs),
+            nHs = n()) %>%
+  mutate(seHs = sdHs / sqrt(nHs),
+         lower.ci.Hs = meanHs - qt(1 - (0.05 / 2), nHs - 1) * seHs,
+         upper.ci.Hs = meanHs + qt(1 - (0.05 / 2), nHs - 1) * seHs,
+         lower.se.Hs = meanHs - seHs,
+         upper.se.Hs = meanHs + seHs)
+
+Hs_seedling_summary_data <- Hs_seedling_summary_data %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>%
+  select(Site, meanHs, seHs)%>%
+  arrange(Site)
+Hs_seedling_summary_data
+
+```
+
+Test seedling Hs:
+
+```{r test Hs in seedlings}
+#run friedman
+res.fried.Hs.seedlings <- Hs.seedlings.df  %>% 
+  friedman_test(Hs ~ Site|locus)
+
+res.fried.Hs.seedlings
+```
+
+No differences that are significant, and model passes validation steps.
+
+Plot seedling Hs:
+
+```{r plot Hs in seedlings}
+
+# part of supp mats panel figure
+
+# d) Hs seedlings
+
+Hs.sds.plot <- Hs.seedlings.df %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = Hs, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_pointrange(data = Hs_seedling_summary_data, mapping = aes(x = Site, y = meanHs, ymax = meanHs + seHs, ymin = meanHs - seHs, color = "black"), size = 0.4, shape = 17) + 
+   labs(y="H" ~italic(s)) +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("Seedling gene diversity\n(or expected heterozygosity)") +
+  labs(tag = "(d)") + theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank())
+
+Hs.sds.plot
+```
+
+### Hs adults
+
+Compute and summarize adult Hs:
+
+```{r get adult expected heterozygosity Hs}
+
+Hs.adults<- as.data.frame(basic.stats.adults$Hs)
+
+Hs.adults <- Hs.adults %>%
+  rownames_to_column("locus")
+
+Hs.adults.RA <- as.data.frame(Hs.adults %>% dplyr::select(RA, locus))
+
+Hs.adults.RA$Site <- "RA"
+
+Hs.adults.LA <- as.data.frame(Hs.adults %>% dplyr::select(LA, locus))
+Hs.adults.LA$Site <- "LA"
+
+Hs.adults.TRC <- as.data.frame(Hs.adults %>% dplyr::select(TRC, locus))
+Hs.adults.TRC$Site <- "TRC"
+
+colnames(Hs.adults.RA)[1] <- "Hs"
+colnames(Hs.adults.LA)[1] <- "Hs"
+colnames(Hs.adults.TRC)[1] <- "Hs"
+
+Hs.adults.df <- rbind(Hs.adults.RA, Hs.adults.LA, Hs.adults.TRC)
+
+# clean
+rm(Hs.adults.RA, Hs.adults.LA, Hs.adults.TRC)
+
+# summarize
+
+Hs_adult_summary <- Hs.adults.df %>%
+  
+  group_by(Site) %>%
+  
+  summarise(meanHs = mean(Hs),
+            sdHs = sd(Hs),
+            nHs = n()) %>%
+  mutate(seHs = sdHs / sqrt(nHs),
+         lower.ci.Hs = meanHs - qt(1 - (0.05 / 2), nHs - 1) * seHs,
+         upper.ci.Hs = meanHs + qt(1 - (0.05 / 2), nHs - 1) * seHs,
+         lower.se.Hs = meanHs - seHs,
+         upper.se.Hs = meanHs + seHs)
+
+Hs_adult_summary <- Hs_adult_summary %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>%
+  select(Site, meanHs, seHs)%>%
+  arrange(Site)
+
+Hs_adult_summary
+
+```
+
+Test adult Hs:
+
+```{r test Hs in adults}
+
+#run friedman
+res.fried.Hs.adults <- Hs.adults.df  %>% 
+  friedman_test(Hs ~ Site|locus)
+
+res.fried.Hs.adults
+```
+
+No differences that are significant, and model passes validation steps.
+
+Plot adult Hs:
+
+```{r plot adult Hs}
+
+# part of supp mats panel figure
+
+# (d) Hs adults
+
+Hs.adult.plot <- Hs.adults.df %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = Hs, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_pointrange(data = Hs_adult_summary, mapping = aes(x = Site, y = meanHs, ymax = meanHs + seHs, ymin = meanHs - seHs, color = "black"), size = 0.4, shape = 17) + 
+   labs(y="H" ~italic(s)) +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("Adult gene diversity\n(or expected heterozygosity)") +
+  labs(tag = "(d)") + theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank())
+
+Hs.adult.plot
+```
+
+Clean Hs related dfs
+
+```{r clean Hs dfs}
+rm(Hs.adults, Hs.seedlings, Hs.adults.df, Hs.seedlings.df, Hs_adult_summary, Hs_seedling_summary_data)
+```
+
+## ***Fis***
+
+### Fis seedlings
+
+Compute and summarize seedling Fis:
+
+```{r hierfstat Fis for seedlings}
+
+Fis.seedlings<- as.data.frame(basic.stats.seedlings$Fis)
+Fis.seedlings <- Fis.seedlings %>%
+  rownames_to_column("locus")
+
+Fis.seedlings.RA <- Fis.seedlings %>%
+  dplyr::select(RA, locus)
+
+Fis.seedlings.RA$Site <- "RA"
+
+Fis.seedlings.LA <- Fis.seedlings %>%
+  dplyr::select(LA, locus)
+
+Fis.seedlings.LA$Site <- "LA"
+
+Fis.seedlings.TRC <- Fis.seedlings %>%
+  dplyr::select(TRC, locus)
+
+Fis.seedlings.TRC$Site <- "TRC"
+
+colnames(Fis.seedlings.RA)[1] <- "Fis"
+colnames(Fis.seedlings.LA)[1] <- "Fis"
+colnames(Fis.seedlings.TRC)[1] <- "Fis"
+
+Fis.seedlings.df <- rbind(Fis.seedlings.RA, Fis.seedlings.LA, Fis.seedlings.TRC)
+
+# clean
+rm(Fis.seedlings.RA, Fis.seedlings.LA, Fis.seedlings.TRC, basic.stats.seedlings)
+
+# summarize
+Fis_seedling_summary_data <- Fis.seedlings.df %>%
+  
+  group_by(Site) %>%
+  
+  summarise(meanFis = mean(Fis),
+            sdFis = sd(Fis),
+            nFis = n()) %>%
+  mutate(seFis = sdFis / sqrt(nFis),
+         lower.ci.Fis = meanFis - qt(1 - (0.05 / 2), nFis - 1) * seFis,
+         upper.ci.Fis = meanFis + qt(1 - (0.05 / 2), nFis - 1) * seFis,
+         lower.se.Fis = meanFis - seFis,
+         upper.se.Fis = meanFis + seFis)
+
+Fis_seedling_summary_data <- Fis_seedling_summary_data %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>%
+  select(Site, meanFis, seFis)%>%
+  arrange(Site)
+Fis_seedling_summary_data
+
+```
+
+Test seedling Fis:
+
+```{r test Fis in seedlings}
+#run friedman
+res.fried.Fis.seedlings <- Fis.seedlings.df  %>% 
+  friedman_test(Fis ~ Site|locus)
+
+res.fried.Fis.seedlings
+```
+
+No significant effects, model meets assumptions. 
+
+Plot seedling Fis:
+
+```{r plot seedling Fis}
+#part of supp mats panel figure
+
+#1. (e) Fis seedlings
+
+Fis.sds.plot <- Fis.seedlings.df %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = Fis, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_pointrange(data = Fis_seedling_summary_data, mapping = aes(x = Site, y = meanFis, ymax = meanFis + seFis, ymin = meanFis - seFis, color = "black"), size = 0.4, shape = 17) + 
+   labs(y="F" ~italic(is)) +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("Seedling inbreeding coefficients") +
+  labs(tag = "(e)") + theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank())
+
+Fis.sds.plot
+```
+
+### Fis adults
+
+Compute and summarize adult Fis:
+
+```{r Fis for adults}
+Fis.adults<- as.data.frame(basic.stats.adults$Fis)
+
+Fis.adults <- Fis.adults %>%
+  rownames_to_column("locus")
+
+Fis.adults.RA <- Fis.adults %>%
+  dplyr::select(RA, locus)
+
+Fis.adults.RA$Site <- "RA"
+
+Fis.adults.LA <- Fis.adults %>%
+  dplyr::select(LA, locus)
+
+Fis.adults.LA$Site <- "LA"
+
+Fis.adults.TRC <- Fis.adults %>%
+  dplyr::select(TRC, locus)
+
+Fis.adults.TRC$Site <- "TRC"
+
+colnames(Fis.adults.RA)[1] <- "Fis"
+colnames(Fis.adults.LA)[1] <- "Fis"
+colnames(Fis.adults.TRC)[1] <- "Fis"
+
+Fis.adults.df <- rbind(Fis.adults.RA, Fis.adults.LA, Fis.adults.TRC)
+
+# clean
+rm(Fis.adults.RA, Fis.adults.LA, Fis.adults.TRC)
+
+# summarize
+Fis_adult_summary_data <- Fis.adults.df %>%
+  
+  group_by(Site) %>%
+  na.omit() %>%
+  summarise(meanFis = mean(Fis),
+            sdFis = sd(Fis),
+            nFis = n()) %>%
+  mutate(seFis = sdFis / sqrt(nFis),
+         lower.ci.Fis = meanFis - qt(1 - (0.05 / 2), nFis - 1) * seFis,
+         upper.ci.Fis = meanFis + qt(1 - (0.05 / 2), nFis - 1) * seFis,
+         lower.se.Fis = meanFis - seFis,
+         upper.se.Fis = meanFis + seFis)
+
+Fis_adult_summary_data <- Fis_adult_summary_data %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>%
+  select(Site, meanFis, seFis)%>%
+  arrange(Site)
+Fis_adult_summary_data
+```
+
+Test adult Fis:
+
+```{r test Fis in adults}
+
+res.fried.Fis.adults <- Fis.adults.df  %>% 
+  filter(locus != "EPR02") %>%
+  filter(locus != "EPR35") %>%
+  friedman_test(Fis ~ Site|locus)
+
+res.fried.Fis.adults
+```
+
+No significant effects, model meets assumptions. 
+
+Plot adult Fis:
+
+```{r plot adult Fis, warning = FALSE, message=FALSE}
+
+# part of supp mats panel figure
+#(e) Fis adults
+
+Fis.adult.plot <- Fis.adults.df %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = Fis, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_pointrange(data = Fis_adult_summary_data, mapping = aes(x = Site, y = meanFis, ymax = meanFis + seFis, ymin = meanFis - seFis, color = "black"), size = 0.4, shape = 17) + 
+   labs(y="F" ~italic(is)) +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("Adult inbreeding coefficients") +
+  labs(tag = "(e)") + theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank())
+
+Fis.adult.plot
+```
+Clean Fis related dfs
+
+```{r clean Fis dfs}
+rm(Fis.adults, Fis.adults.df, Fis.seedlings, Fis.seedlings.df, Fis_adult_summary_data, Fis_seedling_summary_data)
+```
+
+
+## Individual kinship analysis
+
+Read in the pairwise adult-seedling Fij kinship values computed per locus in SPAGeDi for each site. 
+
+```{r read in intercohort per loc kinship dat}
+
+ic.fij.dat <- read.csv("data-in/gen_div_and_per_loc_info.csv")
+
+```
+
+```{r get SE of mean intercohort kinship dat}
+
+ic.fij.summ <- ic.fij.dat %>% 
+  filter(Locus != "Multilocus_avg") %>%
+  filter(Cohort == "seed-adult") %>%
+  filter(n_ints == "10_25-215m") %>%
+  group_by(Site) %>%
+  summarise(mean.Fij = mean(avg_pairwise_kinship),
+            sdFij= sd(avg_pairwise_kinship),
+            n = n()) %>%
+  mutate(seFij = sdFij / sqrt(n))
+
+# print
+ic.fij.summ
+```
+
+Test for differences in Fij kinship values of adults-seedling pairs between sites. 
+
+```{r test intercohort kinship btwn sites}
+sink()
+# make a temp dataframe with only per loc vals of adults without the nonpolymorphic loci
+aov.intcoh.df <- ic.fij.dat %>%
+  filter(Locus != "Multilocus_avg") %>%
+  filter(Cohort == "seed-adult") %>%
+  filter(n_ints == "10_25-215m") %>%
+  dplyr::select(Site, Cohort, Locus, avg_pairwise_kinship)
+
+# anova with locus as the blocking factor and site as the main effect
+fij.intcoh.anova <- aov(avg_pairwise_kinship ~ Site + Locus, data = aov.intcoh.df)
+
+# summarize the results
+summary(fij.intcoh.anova)
+
+# look at normality and assess if model meets assumptions
+plot(fij.intcoh.anova)
+
+# use Shapiro Wilk test to check if sample is normally distributed by testing residuals
+shapiro.test(resid(fij.intcoh.anova))
+
+# Tukey Honest Sig Diff test
+TukeyHSD(fij.intcoh.anova)
+```
+
+
+Average intercohort kinship values, 7 loci (includes the ones lacking adequate polymorphism in adult pops)
+
+```{r visualize avg kinship}
+
+gen.sim <- ic.fij.dat %>%
+  filter(Cohort == "seed-adult-5loci") %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  arrange(Site) %>%
+  ggplot(aes(x = Site, y = jackknifed_avg_Fij, color = Site)) +
+  geom_pointrange(aes(ymax = jackknifed_avg_Fij + jackknifed_avg_Fij_SE, ymin = jackknifed_avg_Fij - jackknifed_avg_Fij_SE))+
+  scale_colour_manual(values = c("darkred","burlywood3","aquamarine3")) +
+  ggtitle("Genetic similarity (estimated through Fij) seedling-adult, 7 loci") +theme_bw()
+
+gen.sim
+
+
+
+```
+
+
+
+
+```{r supplementary figures for Ar NAe Ho Hs Fis seedlings adults pooled, echo = FALSE, warning = FALSE, message=FALSE}
+
+#### Seedlings Panel Figure ####
+
+gen.pop.seedlings <- grid.arrange(Ar.sds.plot, NAe.sds.plot, Ho.sds.plot, Hs.sds.plot, Fis.sds.plot)
+
+ggsave(gen.pop.seedlings, file = "plots/gen.pop.seedlings2.jpg", height = 11, width = 10)
+
+#### Adults Panel Figure ####
+
+gen.pop.adults <- grid.arrange(Ar.adult.plot, NAe.adult.plot, Ho.adult.plot, Hs.adult.plot, Fis.adult.plot)
+
+ggsave(gen.pop.adults, file = "plots/gen.pop.adults2.jpg", height = 11, width = 10)
+
+```
+
+
+Clean plots and other dfs I'm done with from env
+
+```{r clean plots}
+rm(Ar.adult.plot, Ar.sds.plot, basic.stats.adults, basic.stats.pooled, Fis.adult.plot, Fis.sds.plot, hierf.adults, hierf.pooled, hierf.seedlings, Ho.adult.plot, Ho.sds.plot, Hs.adult.plot, Hs.sds.plot, NAe.adult.plot, NAe.sds.plot)
+```
+
+
+# Analyze intercohort distances
+
+### Model
+
+```{r distance to nearest adult model, warning=FALSE, message=FALSE}
+
+kr <- kruskal.test(distance_to_nearest_adult ~ site,
+  data = sdl.adult.dist.df)
+
+kr 
+
+dunnTest(distance_to_nearest_adult ~ site,
+  data = sdl.adult.dist.df,
+  method = "holm"
+)
+
+
+sdl.adult.dist.df %>%
+ group_by(site) %>%
+  summarise(median_dist = median(distance_to_nearest_adult),
+  mean_dist = mean(distance_to_nearest_adult),
+  max_dist = max(distance_to_nearest_adult),
+  min_dist = min(distance_to_nearest_adult),
+  sd_dist = sd(distance_to_nearest_adult))
+
+rm(kr)
+```
+
+### Plot
+
+```{r make a seedling to nearest adult distance summary figure}
+
+sdl.adult.dist.plot <- sdl.adult.dist.df %>% 
+  
+  mutate(site = fct_relevel(site, "RA", "LA", "TRC")) %>% 
+  
+  ggplot(aes(x = site, y= distance_to_nearest_adult, fill = site, color = site)) +
+  
+  scale_fill_manual(values = c("brown4", "burlywood3", "aquamarine3")) +
+  
+  geom_violin(color = "black", draw_quantiles = 0.5) +
+  
+  ylab("Distance (m) between seedlings\nand nearest conspecific adults") +
+  xlab(NULL) + scale_x_discrete(labels=sites) +
+  
+  theme_set(theme_bw(base_size = 11, base_family = 'Times New Roman')) + 
+  theme(legend.title = element_blank()) + theme(legend.position = "none")
+
+sdl.adult.dist.plot
+
+#ggsave(sdl.adult.dist.plot, file = "plots/seedling_adult_distances.jpg", height = 3, width = 4)
+
+# clean
+rm(sdl.adult.dist.df, sdl.adult.dist.plot)
+```
+
+As we would predict, distances between seedlings and nearest adult conspecifics is much greater in the faunally-intact site relative to the other two.
+
+# Analyze Sp values
+
+Sp is -bFlog/(1-F(1)) and is used to facilitate comparisons of the strength of SGS found between sites. Sp is calculated across loci, bF is the observed regression slope of F(r) on the logorithm of distance r, and F(1) is the mean kinship coefficient between pairs of individuals found within the first distance class interval. 
+
+## Adult cohorts
+
+### **Sp based on SPAGeDi output questions:**
+
+*1. SPAGeDi gives Fij, etc results for 'all loci', and then also results per loci. Which do I use in calculating Sp? Should I be reporting the Sp value that I calculate based on the 'all loci' output value for Fij and bFlog or the mean of all the Sp values I can calculate based on per loci Fij and bFlog values that SPAGeDi also gives? The Sp calculated based on the 'all loci' Fij and bFlog results is different from the mean Sp value I get if I average Sp values calculated per loci, though the qualitative trend is the same.
+
+*2. for the adult cohort, Ep02 in TRC did not show any heterozygosity/variation nor did Ep35 in LA. Because of this, SPAGeDi could not calculate Fij estimates and consequently slopes (bFlog), which are needed to estimate Sp values.
+
+*3. for the model, I was using marker as a random effect and the Sp values calculated based on each independent marker (which SPAGeDi gives for each marker in addition to an 'all loci' estimate of Fij in its output). Is this correct, and is it problematic to do this when there are no Sp values for those two markers at those two sites?
+  
+**Sp based on 'All loci' SPAGeDi output**
+
+Sp calculated based on the 'all loci' Fij and bFlog in SPAGeDi output.
+
+```{r compute adult sp}
+
+#Sp values using 'all loci' Fij and bFlog
+adult.sp <- adult.SPAG.vals %>%
+  filter(metric == "obs_val") %>%
+  filter(Locus == "All_loci") %>%
+  select(d1, bFlog, metric, Site, Locus)
+
+# make numeric
+adult.sp$bFlog <- as.numeric(adult.sp$bFlog)
+adult.sp$d1 <- as.numeric(adult.sp$d1)
+
+# make site a factor
+adult.sp$Site <- as.factor(adult.sp$Site)
+
+# calc Sp
+adult.sp <- adult.sp %>%
+  group_by(Site, Locus) %>%
+  summarize(Sp = (-bFlog)/(1-d1))
+
+# reorder and display
+adult.sp <- adult.sp %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>%
+  arrange(Site)
+
+adult.sp
+```
+
+**Sp based on per loci SPAGeDi output**
+
+Mean of Sp calculated per loci based on Fij and bFlog SPAGeDi output for each marker. Two instances are excluded resulting in uneven marker sample size in adult cohorts across sites: LA lacks Ep35, TRC lacks Ep02 (neither had variation or heterozygosity in adult samples at those sites, so SPAGeDi cannot give Fij estimates). 
+
+```{r adult sp based on per loci Fij and bFlog}
+
+# make df for model that is Sp calculated per loci (allows me to run a model)
+adult.sp.df <- adult.SPAG.vals %>%
+  filter(metric == "obs_val") %>%
+  filter(Locus != c("All_loci", "Ep02", "Ep35")) %>% 
+  select(d1, bFlog, metric, Site, Locus)
+
+#make numeric
+adult.sp.df$bFlog <- as.numeric(adult.sp.df$bFlog)
+adult.sp.df$d1 <- as.numeric(adult.sp.df$d1)
+
+# make site a factor
+adult.sp.df$Site <- as.factor(adult.sp.df$Site)
+
+# calc Sp
+adult.sp.df <- adult.sp.df %>%
+  group_by(Site, Locus) %>%
+  summarize(Sp = (-bFlog)/(1-d1))
+
+# summarize and get SE
+adult.sp_summary_data <- adult.sp.df %>%
+  group_by(Site) %>%
+  summarise(meanSp = mean(Sp),
+            sdSp = sd(Sp),
+            nSp = n()) %>%
+  mutate(seSp = sdSp / sqrt(nSp),
+         lower.ci.Sp = meanSp - qt(1 - (0.05 / 2), nSp - 1) * seSp,
+         upper.ci.Sp = meanSp + qt(1 - (0.05 / 2), nSp - 1) * seSp,
+         lower.se.Sp = meanSp - seSp,
+         upper.se.Sp = meanSp + seSp)
+
+adult.sp_summary_data <- adult.sp_summary_data %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>%
+  select(Site, meanSp, seSp)%>%
+  arrange(Site)
+
+adult.sp_summary_data
+```
+
+Because the per loci output gives me Fij and bFlog for each marker, I can run an analysis with marker as random effects and Sp for each as the fixed effect, with Site as my predictor. Doing that below:
+
+```{r model adult sp vals}
+
+adult.sp.mod <- glmmTMB(Sp ~ Site + (1|Locus), data = adult.sp.df, family = "gaussian")
+
+#simplify
+adult.sp.mod.aov <- Anova(adult.sp.mod)
+
+# display 
+adult.sp.mod.aov
+
+# test if overdispersed
+testDispersion(adult.sp.mod)
+
+# residuals
+simout <- simulateResiduals(fittedModel = adult.sp.mod)
+
+plotQQunif(simout) 
+
+rm(simout, adult.sp.mod, adult.sp.mod.aov)
+
+```
+
+Plot Sp values based on Fij for distance class 1 and bFlog computed by SPAGeDi *per loci* (as opposed to the 'all loci' output it also gives).
+
+```{r plot adult sp vals per loci and means per loci}
+
+adult.sp.plot <- adult.sp.df %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = Sp, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_pointrange(data =adult.sp_summary_data, mapping = aes(x = Site, y = meanSp, ymax = meanSp + seSp, ymin = meanSp - seSp, color = "black"), size = 0.4, shape = 17) + 
+   labs(y= ~italic(Sp)) +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("Adult Sp values, means across per loci Fij estimates and per loci bFlog") +
+  theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank()) +theme_bw()
+
+adult.sp.plot
+```
+Individual marker Sp values shown by colors points. Black triangle is mean Sp across loci in that site, and bars show standard error. Note RA has 7 data points while LA and TRC have 6. This is because for the adult cohort, Ep02 in TRC did not show any heterozygosity/variation nor did Ep35 in LA. Because of this, SPAGeDi could not calculate Fij estimates and consequently slopes (bFlog), which are needed to estimate Sp values. 
+
+
+Plot Sp values calculated based on the 'all loci' output from SPAGeDi (as opposed to per loci)
+
+```{r all loci sp adults}
+adult.sp.plot2 <- adult.sp.df %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = Sp, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_point(data =adult.sp, mapping = aes(x = Site, y =Sp, color = "black"), size = 2, shape = 17) + 
+   labs(y= ~italic(Sp)) +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("Adult Sp") +
+  theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank())
+
+adult.sp.plot2
+```
+
+## Seedling cohorts
+
+**Sp based on 'All loci' SPAGeDi output**
+
+Sp calculated based on the 'all loci' Fij and bFlog in SPAGeDi output.
+
+```{r compute seedling sp}
+
+#Sp values using 'all loci' Fij and bFlog
+seedling.sp <- sdlg.SPAG.vals %>%
+  filter(metric == "obs_val") %>%
+  filter(Locus == "All_loci") %>%
+  select(d1, bFlog, metric, Site, Locus)
+
+# make numeric
+seedling.sp$bFlog <- as.numeric(seedling.sp$bFlog)
+seedling.sp$d1 <- as.numeric(seedling.sp$d1)
+
+# make site a factor
+seedling.sp$Site <- as.factor(seedling.sp$Site)
+
+# calc Sp
+seedling.sp <- seedling.sp %>%
+  group_by(Site, Locus) %>%
+  summarize(Sp = (-bFlog)/(1-d1))
+
+# reorder and display
+seedling.sp <- seedling.sp %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>%
+  arrange(Site)
+
+seedling.sp
+```
+
+**Sp based on per loci SPAGeDi output**
+
+```{r seedling sp based on per loci Fij and bFlog}
+
+# make df for model that is Sp calculated per loci (allows me to run a model)
+seedling.sp.df <- sdlg.SPAG.vals %>%
+  filter(metric == "obs_val") %>%
+  filter(Locus != "All_loci") %>% # exclude the all loci Fij
+  select(d1, bFlog, metric, Site, Locus) %>%
+  # remove NA cases where Fij is not estimated at marker level due to no heterozygosity
+  filter(!is.na(bFlog))
+
+#make numeric
+seedling.sp.df$bFlog <- as.numeric(seedling.sp.df$bFlog)
+seedling.sp.df$d1 <- as.numeric(seedling.sp.df$d1)
+
+# make site a factor
+seedling.sp.df$Site <- as.factor(seedling.sp.df$Site)
+
+# calc Sp
+seedling.sp.df <- seedling.sp.df %>%
+  group_by(Site, Locus) %>%
+  summarize(Sp = (-bFlog)/(1-d1))
+
+# summarize and get SE
+seedling.sp_summary_data <- seedling.sp.df %>%
+  group_by(Site) %>%
+  summarise(meanSp = mean(Sp),
+            sdSp = sd(Sp),
+            nSp = n()) %>%
+  mutate(seSp = sdSp / sqrt(nSp),
+         lower.ci.Sp = meanSp - qt(1 - (0.05 / 2), nSp - 1) * seSp,
+         upper.ci.Sp = meanSp + qt(1 - (0.05 / 2), nSp - 1) * seSp,
+         lower.se.Sp = meanSp - seSp,
+         upper.se.Sp = meanSp + seSp)
+
+seedling.sp_summary_data <- seedling.sp_summary_data %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>%
+  select(Site, meanSp, seSp)%>%
+  arrange(Site)
+
+seedling.sp_summary_data
+```
+
+Because the per loci output gives me Fij and bFlog for each marker, I can run an analysis with marker as random effects and Sp for each as the fixed effect, with Site as my predictor. Doing that below:
+
+```{r model seedling sp vals}
+
+seedling.sp.mod <- glmmTMB(Sp ~ Site + (1|Locus), data = seedling.sp.df, family = "gaussian")
+
+#simplify
+seedling.sp.mod.aov <- Anova(seedling.sp.mod)
+
+# display 
+seedling.sp.mod.aov
+
+# test if overdispersed
+testDispersion(seedling.sp.mod)
+
+# residuals
+simout <- simulateResiduals(fittedModel = seedling.sp.mod)
+
+plotQQunif(simout) 
+
+rm(simout, seedling.sp.mod, seedling.sp.mod.aov)
+
+```
+
+Plot Sp values based on Fij for distance class 1 and bFlog computed by SPAGeDi *per loci* (as opposed to the 'all loci' output it also gives).
+
+```{r plot seedling sp vals per loci and means per loci}
+
+seedling.sp.plot <- seedling.sp.df %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = Sp, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_pointrange(data =seedling.sp_summary_data, mapping = aes(x = Site, y = meanSp, ymax = meanSp + seSp, ymin = meanSp - seSp, color = "black"), size = 0.4, shape = 17) + 
+   labs(y= ~italic(Sp)) +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("seedling Sp values, means across per loci Fij estimates and per loci bFlog") +
+  theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank())
+
+seedling.sp.plot
+
+rm(seedling.sp.plot)
+```
+Individual marker Sp values shown by colors points. Black triangle is mean Sp across loci in that site, and bars show standard error. 
+
+Plot Sp values calculated based on the 'all loci' output from SPAGeDi (as opposed to per loci)
+
+```{r all loci sp seedlings}
+
+seedling.sp.plot2 <- seedling.sp.df %>%
+  mutate(Site = fct_relevel(Site, "RA", "LA", "TRC")) %>% 
+  ggplot(aes(x = Site, y = Sp, color = Site)) +
+  geom_point(size = 2, shape = 16, alpha = 0.7,
+  position=position_jitterdodge(jitter.width = 0.15)) +
+  geom_point(data =seedling.sp, mapping = aes(x = Site, y =Sp, color = "black"), size = 2, shape = 17) + 
+   labs(y= ~italic(Sp)) +
+  scale_x_discrete(labels = sites) +
+  scale_colour_manual(values = c("black", "burlywood3","darkred","aquamarine3")) +
+  ggtitle("seedling Sp") +
+  theme_set(theme_bw(base_size = 12, base_family = 'Times New Roman')) +
+  theme(legend.position = "none") + theme(axis.title.x = element_blank())
+
+seedling.sp.plot2
+
+rm(seedling.sp.plot2)
+```
+Sp calculated based on the 'all loci' Fij and bFlog SPAGeDi output (as opposed to using the mean of Sps based on the per marker values that SPAGeDi also gives, which is the plot preceding this one).
+
+# Plot Fij over pairwise distances
+
+First, make relevant columns numeric
+
+```{r make numeric}
+
+# use as numeric for multiple lines of code in an inefficient way
+
+# seedlings
+sdlg.SGS.plotting.df$jkn_SE<-as.numeric(sdlg.SGS.plotting.df$jkn_SE)
+sdlg.SGS.plotting.df$obs_val<-as.numeric(sdlg.SGS.plotting.df$obs_val)
+sdlg.SGS.plotting.df$Max_distance<-as.numeric(sdlg.SGS.plotting.df$Max_distance)
+sdlg.SGS.plotting.df$lower.95<-as.numeric(sdlg.SGS.plotting.df$lower.95)
+sdlg.SGS.plotting.df$upper.95<-as.numeric(sdlg.SGS.plotting.df$upper.95)
+sdlg.SGS.plotting.df$Site<-as.factor(sdlg.SGS.plotting.df$Site)
+sdlg.SGS.plotting.df$mean_perm_val<-as.numeric(sdlg.SGS.plotting.df$mean_perm_val)
+
+# adults
+adult.SGS.plotting.df$jkn_SE<-as.numeric(adult.SGS.plotting.df$jkn_SE)
+adult.SGS.plotting.df$obs_val<-as.numeric(adult.SGS.plotting.df$obs_val)
+adult.SGS.plotting.df$Max_distance<-as.numeric(adult.SGS.plotting.df$Max_distance)
+adult.SGS.plotting.df$lower.95<-as.numeric(adult.SGS.plotting.df$lower.95)
+adult.SGS.plotting.df$upper.95<-as.numeric(adult.SGS.plotting.df$upper.95)
+adult.SGS.plotting.df$Site<-as.factor(adult.SGS.plotting.df$Site)
+adult.SGS.plotting.df$mean_perm_val<-as.numeric(adult.SGS.plotting.df$mean_perm_val)
+
+```
+
+```{r plot Fij over pairwise distance classes version 1}
+temp <- read.csv("data-in/spagedi-results-intcoh-ref-alleles-weighted.csv")
+
+wtf1<-temp %>%
+  ggplot(aes(x = Max.distance, y = Mean_jackkniffed, color = Site)) +
+  scale_color_manual(values = c("brown4", "burlywood4", "aquamarine4")) +
+  
+  geom_errorbar(aes(color = Site, ymin = Mean_jackkniffed-SE, ymax= Mean_jackkniffed+SE), width = 1.5) + 
+  
+  geom_line(aes(color = Site),linewidth = 0.5) + 
+  
+  geom_point(aes(color = Site), size = 2) + 
+  
+  ylab(~italic(F)[ij]~' (kinship coefficient)') + xlab("Pairwise distance (m)") + 
+  
+  theme_set(theme_bw(base_size = 14)) + facet_wrap( ~Site) + theme(legend.position = "none") 
+
+wtf1
+
+temp2 <- read.csv("data-in/spagedi-results-withincoh-ref-alleles-weighted.csv")
+
+wtf2<-temp2 %>%
+  ggplot(aes(x = Max.distance, y = Mean_jackniffed, color = Site)) +
+  scale_color_manual(values = c("brown4", "burlywood4", "aquamarine4")) +
+  
+  geom_errorbar(aes(color = Site, ymin = Mean_jackniffed-SE, ymax= Mean_jackniffed+SE), width = 1.5) + 
+  
+  geom_line(aes(color = Site),linewidth = 0.5) + 
+  
+  geom_point(aes(color = Site), size = 2) + 
+  
+  ylab(~italic(F)[ij]~' (kinship coefficient)') + xlab("Pairwise distance (m)") + 
+  
+  theme_set(theme_bw(base_size = 14)) + facet_wrap( ~Site) + theme(legend.position = "none") 
+
+wtf2
+
+seedlings <- sdlg.SGS.plotting.df %>%
+  mutate(Site= fct_relevel(Site, c("RA","LA","TRC"))) %>%
+  arrange(Site) %>%
+  ggplot(aes(x = Max_distance, y = obs_val, color = Site)) +
+  scale_color_manual(values = c("brown4", "burlywood4", "aquamarine4")) +
+  
+  geom_ribbon(aes(ymin = lower.95, ymax = upper.95), alpha = 0.2, color = "white") +
+  
+  geom_line(aes(y = mean_perm_val, x = Max_distance, group = Site), linetype = "dashed", linewidth = 1, color = "darkgray") +
+  
+  geom_errorbar(aes(color = Site, ymin = obs_val - jkn_SE, ymax= obs_val + jkn_SE), width = 1.5) + 
+  
+  geom_line(aes(color = Site),linewidth = 0.5) + 
+  
+  geom_point(aes(color = Site), size = 2) + 
+  
+  ylab(~italic(F)[ij]~' (kinship coefficient)') + xlab("Pairwise distance (m)") + 
+  
+  theme_set(theme_bw(base_size = 14, base_family = 'Times New Roman' )) + facet_wrap( ~Site, labeller = labeller(Site = sites)) + theme(legend.position = "none") + theme(strip.background = element_rect(color = "black", fill = "lightgray")) + labs(tag = "b)") 
+
+seedlings
+
+rm(seedlings)
+# repeat for adults
+
+adults <- adult.SGS.plotting.df %>%
+  mutate(Site= fct_relevel(Site, c("RA","LA","TRC"))) %>%
+  arrange(Site) %>%
+  ggplot(aes(x = Max_distance, y = obs_val, color = Site)) +
+  scale_color_manual(values = c("brown4", "burlywood4", "aquamarine4")) +
+  
+  geom_ribbon(aes(ymin = lower.95, ymax = upper.95), alpha = 0.2, color = "white") +
+  
+  geom_line(aes(y = mean_perm_val, x = Max_distance, group = Site), linetype = "dashed", linewidth = 1, color = "darkgray") +
+  
+  geom_errorbar(aes(color = Site, ymin = obs_val - jkn_SE, ymax= obs_val + jkn_SE), width = 1.5) + 
+  
+  geom_line(aes(color = Site),linewidth = 0.5) + 
+  
+  geom_point(aes(color = Site), size = 2) + 
+  
+  ylab(~italic(F)[ij]~' (kinship coefficient)') + xlab("Pairwise distance (m)") +
+  
+  theme_set(theme_bw(base_size = 14, base_family = 'Times New Roman' )) + facet_wrap( ~Site, labeller = labeller(Site = sites)) + theme(legend.position = "none") + theme(strip.background = element_rect(color = "black", fill = "lightgray")) + labs(tag = "a)") 
+
+adults
+
+rm(adults)
+```
+
+Now, mess with y axis scales to match between cohorts (note x axis pairwise distances still won't match)
+
+```{r plot Fij over pairwise distance version 2}
+seedlings2 <- sdlg.SGS.plotting.df %>%
+  mutate(Site= fct_relevel(Site, c("RA","LA","TRC"))) %>%
+  arrange(Site) %>%
+  ggplot(aes(x = Max_distance, y = obs_val, color = Site)) +
+  scale_color_manual(values = c("brown4", "burlywood4", "aquamarine4")) +
+  geom_ribbon(aes(ymin = lower.95, ymax = upper.95), alpha = 0.2, color = "white") +
+  geom_line(aes(y = mean_perm_val, x = Max_distance, group = Site), linetype = "dashed", linewidth = 1, color = "darkgray") +
+  geom_errorbar(aes(color = Site, ymin = obs_val - jkn_SE, ymax= obs_val + jkn_SE), width = 1.5) + 
+  geom_line(aes(color = Site),linewidth = 0.5) + 
+  
+  geom_point(aes(color = Site), size = 2) +  ylim(-0.050,0.050) +
+  
+  ylab(~italic(F)[ij]~' (kinship coefficient)') + xlab("Pairwise distance (m)") + 
+  
+  theme_set(theme_bw(base_size = 14, base_family = 'Times New Roman' )) + facet_wrap( ~Site, labeller = labeller(Site = sites)) + theme(legend.position = "none") + theme(strip.background = element_rect(color = "black", fill = "lightgray")) + labs(tag = "b)") 
+
+seedlings2
+
+
+# repeat for adults
+
+adults2 <- adult.SGS.plotting.df %>%
+  mutate(Site= fct_relevel(Site, c("RA","LA","TRC"))) %>%
+  arrange(Site) %>%
+  ggplot(aes(x = Max_distance, y = obs_val, color = Site)) +
+  scale_color_manual(values = c("brown4", "burlywood4", "aquamarine4")) +
+  
+  geom_ribbon(aes(ymin = lower.95, ymax = upper.95), alpha = 0.2, color = "white") +
+  
+  geom_line(aes(y = mean_perm_val, x = Max_distance, group = Site), linetype = "dashed", linewidth = 1, color = "darkgray") +
+  
+  geom_errorbar(aes(color = Site, ymin = obs_val - jkn_SE, ymax= obs_val + jkn_SE), width = 1.5) + 
+  
+  geom_line(aes(color = Site),linewidth = 0.5) + 
+  
+  geom_point(aes(color = Site), size = 2) + 
+  
+  ylab(~italic(F)[ij]~' (kinship coefficient)') + xlab("Pairwise distance (m)") +
+  
+  theme_set(theme_bw(base_size = 14, base_family = 'Times New Roman' )) + facet_wrap( ~Site, labeller = labeller(Site = sites)) + theme(legend.position = "none") + theme(strip.background = element_rect(color = "black", fill = "lightgray")) + labs(tag = "a)") 
+
+adults2
+
+
+```
+
+Experiment with patchwork package to combine adult and seedling plots
+
+```{r combining plots}
+plot1<-adults2/seedlings2
+
+plot1
+
+# save
+#ggsave(plot1, file = "plots/Fij_seedling_adult_plot.jpg", width = 9.5, height = 8)
+
+# clean 
+rm(adults2)
+rm(seedlings2, plot1)
+```
+
+```{r Session Info}
+replay(package.loading.messages)
+sessionInfo()
+```
