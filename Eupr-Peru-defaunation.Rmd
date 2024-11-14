@@ -29,8 +29,7 @@ knitr::opts_chunk$set(echo = TRUE)
 extrafont::loadfonts(device="win")
 # CREATE PACKAGE LIST:
 # (ADD / delete the packages you need / don't below!)
-Packages <- c("tidyverse", "knitr", "kableExtra", "glmmTMB", "broom.mixed", "grid", "extrafont",
-              "car", "evaluate", "genepop", "hierfstat", "DHARMa", "spatstat", "lme4", "abind", "FSA", "gridExtra", "patchwork", "hrbrthemes", "webshot2", "ggpubr", "rstatix", "spatstat")
+Packages <- c("tidyverse", "knitr", "kableExtra", "glmmTMB", "broom.mixed", "grid", "extrafont", "car", "evaluate", "genepop", "hierfstat", "DHARMa", "spatstat", "lme4", "abind", "FSA", "gridExtra", "patchwork", "hrbrthemes", "webshot2", "ggpubr", "rstatix", "spatstat")
 
 
 # LOAD PACKAGES:
@@ -1022,7 +1021,7 @@ sdl.sdl.plot
 #ggsave(sdl.adult.dist.plot, file = "plots/seedling_adult_distances.jpg", height = 3, width = 4)
 
 # clean
-rm(sdl.adult.dist.df, sdl.adult.dist.plot)
+rm(sdl.adult.dist.df)
 
 ```
 
@@ -1071,7 +1070,6 @@ quadrat.test(TRC.pp, nx = 10, ny = 10, method = "MonteCarlo")
 Data is, as expected, inhomogenous (also damn despite our best efforts, it truly looks like there are edge effects.... trampling or less search effort somehow.)
 
 Next, calculate the Ripley’s K function and plot the results. Ripley’s K is a method of determining whether a point pattern deviates from complete spatial randomness (CSR) at a given distance. 
-
 Use the Kest function from the spatstat package. Use the “Ripley” correction factor that helps us deal with edge effects. "Simulate the potential effects of sampling by creating what is called an “envelope” from the actual data. Specifically, this procedure involves simulating some number of datasets by permuting the locations of input data (99 times by default) and then obtaining the range of K-hat values across a range of distances for each permuted dataset. We can then plot the K estimates at each distance for the original data along with the “envelope” showing the range for the simulated datasets."
 
 Values above the theoretical, random null model line and shaded CI area indicate clustering and values below the line indicate dispersion.
@@ -1295,6 +1293,7 @@ How many individuals of each cohort were in each plot?
 ```{r n per cohort in plots}
 # look at number of seedlings per plot that I have in full mapping df
 full.mapping.df %>%
+  filter(stage != "sapling") %>%
   group_by(site, stage) %>%
   summarize(total_num_individuals = n())
 
@@ -1323,6 +1322,13 @@ rm(plants)
 
 #write.csv(genepop, file = "data-out/Euterpe_precatoria_cleaned_data.csv", row.names = FALSE)
 ```
+
+Clean dataframes etc we are no longer going to use. 
+
+```{r big clean}
+rm(adlt.adlt.hist, adult.pairs.distances, adult.uni.env, adult.uni.p, bi.df, bi.p, df.mapping, dunn.sdl.sdl, full.mapping.df, genotyped.full.mapping.df, kr.sdl.adlt, kr.sdl.sdl, LA.adlt, LA.bi, LA.bi.df, LA.distances.adult.pairs, LA.distances.all.pairs, LA.distances.sdl.adult, LA.distances.seedling.pairs, LA.pairwise_distance_raw, LA.pp, LA.sdx2, LA.uni.adult, p.facet, RA.adlt, RA.bi, RA.bi.df,  RA.distances.all.pairs, RA.distances.sdl.adult, RA.distances.seedling.pairs, RA.distances.adult.pairs, RA.pairwise_distance_raw, RA.pp, RA.sdx2, RA.uni.adult, sd.uni.p, sd2sd.uni.env, sdl.adlt.dunn, sdl.adult.dist.plot, sdl.sdl.hist, sdl.sdl.plot, seedling.nearest.seedling, seedling.pairs.distances, spatial.panel, TRC.adlt, TRC.bi, TRC.bi.df, TRC.distances.adult.pairs, TRC.distances.all.pairs, TRC.distances.sdl.adult, TRC.distances.seedling.pairs, TRC.pairwise_distance_df, TRC.pairwise_distance_raw, TRC.pp, TRC.sdx2, TRC.uni.adult, w, xy.LA, xy.RA, xy.TRC) 
+```
+
 
 # Marker Quality Checks
 
@@ -2810,7 +2816,7 @@ sdl.adult.dist.plot
 #ggsave(sdl.adult.dist.plot, file = "plots/seedling_adult_distances.jpg", height = 3, width = 4)
 
 # clean
-rm(sdl.adult.dist.df, sdl.adult.dist.plot)
+rm(sdl.adult.dist.df)
 ```
 
 As we would predict, distances between seedlings and nearest adult conspecifics is much greater in the faunally-intact site relative to the other two.
