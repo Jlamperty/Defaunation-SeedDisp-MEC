@@ -5,7 +5,7 @@ Therese Lamperty, Zoe Diaz-Martin, Varun Swamy, Jordan Karubian, Juanita Choo, a
 
 **Summary**
 
-This repo includes the analysis code, spatial data, and microsatellite data used in Lamperty et al 2024 Molecular Ecology. This study investigates the effects of defaunation caused by overhunting in the Peruvian Amazon on a small-seeded palm species. The study design uses 3 areas in the Madre de Dios River Basin in Peru that host wildlife (seed disperser) communities affected in varying degrees by defaunation (defaunated, intermediately defaunated, and faunally-intact).
+This repo includes the analysis code, spatial data, and microsatellite data used in Lamperty et al 2024 Molecular Ecology. This study investigates the effects of defaunation caused by overhunting in the Peruvian Amazon on a small-seeded palm species. The study design uses 3 areas in the Madre de Dios River Basin in Peru that host wildlife (seed disperser) communities impacted in varying degrees by defaunation (defaunated, intermediately defaunated, and faunally-intact). Data are also stored in Dryad: DOI: 10.5061/dryad.wwpzgmsv6
 
 **Repo organization:**
 
