@@ -1326,7 +1326,22 @@ rm(plants)
 Clean dataframes etc we are no longer going to use. 
 
 ```{r big clean}
-rm(adlt.adlt.hist, adult.pairs.distances, adult.uni.env, adult.uni.p, bi.df, bi.p, df.mapping, dunn.sdl.sdl, full.mapping.df, genotyped.full.mapping.df, kr.sdl.adlt, kr.sdl.sdl, LA.adlt, LA.bi, LA.bi.df, LA.distances.adult.pairs, LA.distances.all.pairs, LA.distances.sdl.adult, LA.distances.seedling.pairs, LA.pairwise_distance_raw, LA.pp, LA.sdx2, LA.uni.adult, p.facet, RA.adlt, RA.bi, RA.bi.df,  RA.distances.all.pairs, RA.distances.sdl.adult, RA.distances.seedling.pairs, RA.distances.adult.pairs, RA.pairwise_distance_raw, RA.pp, RA.sdx2, RA.uni.adult, sd.uni.p, sd2sd.uni.env, sdl.adlt.dunn, sdl.adult.dist.plot, sdl.sdl.hist, sdl.sdl.plot, seedling.nearest.seedling, seedling.pairs.distances, spatial.panel, TRC.adlt, TRC.bi, TRC.bi.df, TRC.distances.adult.pairs, TRC.distances.all.pairs, TRC.distances.sdl.adult, TRC.distances.seedling.pairs, TRC.pairwise_distance_df, TRC.pairwise_distance_raw, TRC.pp, TRC.sdx2, TRC.uni.adult, w, xy.LA, xy.RA, xy.TRC) 
+
+rm(adlt.adlt.hist, adult.pairs.distances, adult.uni.env, adult.uni.p, bi.df, bi.p, df.mapping)
+
+rm(dunn.sdl.sdl, full.mapping.df, genotyped.full.mapping.df)
+
+rm(kr.sdl.adlt, kr.sdl.sdl, LA.adlt, LA.bi, LA.bi.df)
+
+rm(LA.distances.adult.pairs, LA.distances.all.pairs, LA.distances.sdl.adult, LA.distances.seedling.pairs, LA.pairwise_distance_raw, LA.pp, LA.sdx2, LA.uni.adult)
+
+rm(p.facet, RA.adlt, RA.bi, RA.bi.df,  RA.distances.all.pairs, RA.distances.sdl.adult, RA.distances.seedling.pairs, RA.distances.adult.pairs, RA.pairwise_distance_raw, RA.pp, RA.sdx2, RA.uni.adult)
+
+rm(sd.uni.p, sd2sd.uni.env, sdl.adlt.dunn, sdl.adult.dist.plot, sdl.sdl.hist, sdl.sdl.plot, seedling.nearest.seedling, seedling.pairs.distances, spatial.panel)
+
+rm(TRC.adlt, TRC.bi, TRC.bi.df, TRC.distances.adult.pairs, TRC.distances.all.pairs, TRC.distances.sdl.adult, TRC.distances.seedling.pairs, TRC.pairwise_distance_df, TRC.pairwise_distance_raw, TRC.pp, TRC.sdx2, TRC.uni.adult, w, xy.LA, xy.RA, xy.TRC)
+
+rm(sdlt.adlt.hist, RA.pairwise_distance_df, LA.pairwise_distance_df, kr.adlt.adlt, dunn.adlt.adlt)
 ```
 
 
@@ -1407,9 +1422,9 @@ When the alternative hypothesis (H1) of interest is heterozygote excess or defic
 Read in HWE results and perform Bonferroni corrections.
 
 ```{r read in HWE results and transform p vals}
-HWE <- read.csv("results/HWE_results.csv")
+#HWE <- read.csv("results/HWE_results.csv")
 
-HWE$p_corrected<-p.adjust(HWE$p_uncorrected, method = "bonferroni")
+#HWE$p_corrected<-p.adjust(HWE$p_uncorrected, method = "bonferroni")
 
 # save
 #write.csv(HWE, file = "results/HWE_results.csv", row.names = FALSE)
@@ -1428,67 +1443,67 @@ Pull in key results and format and adjust p values for multiple comparisons.
 ```{r LDE output format and p correction sites as sep, warning=FALSE}
 
 # read in the txt file
-ld <- read.delim("results/LDE_output.txt", header= TRUE)
+#ld <- read.delim("results/LDE_output.txt", header= TRUE)
 
 # look at LD in each site
-ld.RA <- as.data.frame(ld[c(13:33),]) # isolate lines of data pertaining to each site separately
-ld.LA <- as.data.frame(ld[c(34:54),])
-ld.TRC <- as.data.frame(ld[c(55:75),])
+#ld.RA <- as.data.frame(ld[c(13:33),]) # isolate lines of data pertaining to each site separately
+#ld.LA <- as.data.frame(ld[c(34:54),])
+#ld.TRC <- as.data.frame(ld[c(55:75),])
 
-ld.RA$site <- "RA" # add site column
-ld.LA$site <- "LA"
-ld.TRC$site <- "TRC"
+#ld.RA$site <- "RA" # add site column
+#ld.LA$site <- "LA"
+#ld.TRC$site <- "TRC"
 
 # #separate out into columns I want
-ld.RA <- ld.RA %>% 
-separate(1, into = c('remove.me', 'locus1'), sep = 12) %>% 
- separate(locus1, into = c('locus1', 'locus2'), sep = 11) %>% 
- separate(locus2, into = c('locus2', 'pval_uncorrected'), sep = 11) %>% 
- separate(pval_uncorrected, into = c('pval_uncorrected', 'SE'), sep = 12) %>%  separate(SE, into = c('SE', 'steps'), sep = 12) 
+#ld.RA <- ld.RA %>% 
+#separate(1, into = c('remove.me', 'locus1'), sep = 12) %>% 
+# separate(locus1, into = c('locus1', 'locus2'), sep = 11) %>% 
+ #separate(locus2, into = c('locus2', 'pval_uncorrected'), sep = 11) %>% 
+ #separate(pval_uncorrected, into = c('pval_uncorrected', 'SE'), sep = 12) %>%  separate(SE, into = c('SE', 'steps'), sep = 12) 
 
-ld.LA <- ld.LA %>% 
-separate(1, into = c('remove.me', 'locus1'), sep = 12) %>% 
- separate(locus1, into = c('locus1', 'locus2'), sep = 11) %>% 
- separate(locus2, into = c('locus2', 'pval_uncorrected'), sep = 11) %>% 
- separate(pval_uncorrected, into = c('pval_uncorrected', 'SE'), sep = 12) %>%  separate(SE, into = c('SE', 'steps'), sep = 12) 
+#ld.LA <- ld.LA %>% 
+#separate(1, into = c('remove.me', 'locus1'), sep = 12) %>% 
+# separate(locus1, into = c('locus1', 'locus2'), sep = 11) %>% 
+# separate(locus2, into = c('locus2', 'pval_uncorrected'), sep = 11) %>% 
+ #separate(pval_uncorrected, into = c('pval_uncorrected', 'SE'), sep = 12) %>%  separate(SE, into = c('SE', 'steps'), sep = 12) 
 
 
-ld.TRC<- ld.TRC %>% 
-separate(1, into = c('remove.me', 'locus1'), sep = 12) %>% 
- separate(locus1, into = c('locus1', 'locus2'), sep = 11) %>% 
- separate(locus2, into = c('locus2', 'pval_uncorrected'), sep = 11) %>% 
- separate(pval_uncorrected, into = c('pval_uncorrected', 'SE'), sep = 12) %>%  separate(SE, into = c('SE', 'steps'), sep = 12) 
+#ld.TRC<- ld.TRC %>% 
+#separate(1, into = c('remove.me', 'locus1'), sep = 12) %>% 
+# separate(locus1, into = c('locus1', 'locus2'), sep = 11) %>% 
+# separate(locus2, into = c('locus2', 'pval_uncorrected'), sep = 11) %>% 
+# separate(pval_uncorrected, into = c('pval_uncorrected', 'SE'), sep = 12) %>%  separate(SE, into = c('SE', 'steps'), sep = 12) 
 
 
 # column select
-ld.RA <- ld.RA %>%
-  select(locus1, locus2, pval_uncorrected, site)
+#ld.RA <- ld.RA %>%
+ # select(locus1, locus2, pval_uncorrected, site)
 
-ld.LA <- ld.LA %>%
-  select(locus1, locus2, pval_uncorrected, site)
+#ld.LA <- ld.LA %>%
+ # select(locus1, locus2, pval_uncorrected, site)
 
-ld.TRC <- ld.TRC %>%
-  select(locus1, locus2, pval_uncorrected, site)
+#ld.TRC <- ld.TRC %>%
+ # select(locus1, locus2, pval_uncorrected, site)
 
 # get rid of white spaces
-ld.RA <- as.data.frame(sapply(ld.RA, trimws))
-ld.LA <- as.data.frame(sapply(ld.LA, trimws))
-ld.TRC <- as.data.frame(sapply(ld.TRC, trimws))
+#ld.RA <- as.data.frame(sapply(ld.RA, trimws))
+#ld.LA <- as.data.frame(sapply(ld.LA, trimws))
+#ld.TRC <- as.data.frame(sapply(ld.TRC, trimws))
 
 # use Bonferroni correction
-ld.RA$pval_corrected <- p.adjust(ld.RA$pval_uncorrected, method = "bonferroni")
-ld.LA$pval_corrected <- p.adjust(ld.LA$pval_uncorrected, method = "bonferroni")
-ld.TRC$pval_corrected <-p.adjust(ld.TRC$pval_uncorrected, method = "bonferroni")
+#ld.RA$pval_corrected <- p.adjust(ld.RA$pval_uncorrected, method = "bonferroni")
+#ld.LA$pval_corrected <- p.adjust(ld.LA$pval_uncorrected, method = "bonferroni")
+#ld.TRC$pval_corrected <-p.adjust(ld.TRC$pval_uncorrected, method = "bonferroni")
 
 
 # join
-ld.sites <- rbind(ld.RA, ld.LA, ld.TRC)
+#ld.sites <- rbind(ld.RA, ld.LA, ld.TRC)
 
 # clean 
-rm(ld.RA, ld.LA, ld.TRC)
+#rm(ld.RA, ld.LA, ld.TRC)
 
 # display
-ld.sites
+#ld.sites
 
 ```
 
@@ -1723,19 +1738,19 @@ rm(n_adults_genotyped_per_marker_per_site)
 
 After cleaning process, how many failed samples were there per marker?
 ```{r updated percent failure}
-FR <- data.frame(matrix(ncol = 2, nrow = 7))
-colnames(FR) <-c("Marker", "Percent_failed_pooled")
-markers <- c("Epr02", "Epr03", "Epr05", "Epr06", "Epr08", "Epr32","Epr35")
-FR$Marker<-markers
+#FR <- data.frame(matrix(ncol = 2, nrow = 7))
+#colnames(FR) <-c("Marker", "Percent_failed_pooled")
+#markers <- c("Epr02", "Epr03", "Epr05", "Epr06", "Epr08", "Epr32","Epr35")
+#FR$Marker<-markers
 
-percent_failed <- c(length(genepop$EPR02_A[which(genepop$EPR02_A == "000")])/nrow(genepop)*100, length(genepop$EPR03_A[which(genepop$EPR03_A=="000")])/nrow(genepop)*100, length(genepop$EPR05_A[which(genepop$EPR05_A=="000")])/nrow(genepop)*100,
-length(genepop$EPR06_A[which(genepop$EPR06_A=="000")])/nrow(genepop)*100, length(genepop$EPR08_A[which(genepop$EPR08_A=="000")])/nrow(genepop)*100, length(genepop$EPR32_A[which(genepop$EPR32_A=="000")])/nrow(genepop)*100, length(genepop$EPR35_A[which(genepop$EPR35_A=="000")])/nrow(genepop)*100)
+#percent_failed <- c(length(genepop$EPR02_A[which(genepop$EPR02_A == "000")])/nrow(genepop)*100, length(genepop$EPR03_A[which(genepop$EPR03_A=="000")])/nrow(genepop)*100, length(genepop$EPR05_A[which(genepop$EPR05_A=="000")])/nrow(genepop)*100,
+#length(genepop$EPR06_A[which(genepop$EPR06_A=="000")])/nrow(genepop)*100, length(genepop$EPR08_A[which(genepop$EPR08_A=="000")])/nrow(genepop)*100, length(genepop$EPR32_A[which(genepop$EPR32_A=="000")])/nrow(genepop)*100, length(genepop$EPR35_A[which(genepop$EPR35_A=="000")])/nrow(genepop)*100)
 
-FR$Percent_failed_pooled <- percent_failed                    
+#FR$Percent_failed_pooled <- percent_failed                    
 #display
-FR
+#FR
 # clean
-rm(percent_failed, Ep02, Ep35)
+#rm(FR, percent_failed, Ep02, Ep35)
 ```
 
 # Genetic diversity and inbreeding
@@ -2737,21 +2752,19 @@ gen.sim
 ```
 
 
-
-
 ```{r supplementary figures for Ar NAe Ho Hs Fis seedlings adults pooled, echo = FALSE, warning = FALSE, message=FALSE}
 
 #### Seedlings Panel Figure ####
 
 gen.pop.seedlings <- grid.arrange(Ar.sds.plot, NAe.sds.plot, Ho.sds.plot, Hs.sds.plot, Fis.sds.plot)
 
-ggsave(gen.pop.seedlings, file = "plots/gen.pop.seedlings2.jpg", height = 11, width = 10)
+#ggsave(gen.pop.seedlings, file = "plots/gen.pop.seedlings2.jpg", height = 11, width = 10)
 
 #### Adults Panel Figure ####
 
 gen.pop.adults <- grid.arrange(Ar.adult.plot, NAe.adult.plot, Ho.adult.plot, Hs.adult.plot, Fis.adult.plot)
 
-ggsave(gen.pop.adults, file = "plots/gen.pop.adults2.jpg", height = 11, width = 10)
+#ggsave(gen.pop.adults, file = "plots/gen.pop.adults2.jpg", height = 11, width = 10)
 
 ```
 
@@ -2761,65 +2774,6 @@ Clean plots and other dfs I'm done with from env
 ```{r clean plots}
 rm(Ar.adult.plot, Ar.sds.plot, basic.stats.adults, basic.stats.pooled, Fis.adult.plot, Fis.sds.plot, hierf.adults, hierf.pooled, hierf.seedlings, Ho.adult.plot, Ho.sds.plot, Hs.adult.plot, Hs.sds.plot, NAe.adult.plot, NAe.sds.plot)
 ```
-
-
-# Analyze intercohort distances
-
-### Model
-
-```{r distance to nearest adult model, warning=FALSE, message=FALSE}
-
-kr <- kruskal.test(distance_to_nearest_adult ~ site,
-  data = sdl.adult.dist.df)
-
-kr 
-
-dunnTest(distance_to_nearest_adult ~ site,
-  data = sdl.adult.dist.df,
-  method = "holm"
-)
-
-
-sdl.adult.dist.df %>%
- group_by(site) %>%
-  summarise(median_dist = median(distance_to_nearest_adult),
-  mean_dist = mean(distance_to_nearest_adult),
-  max_dist = max(distance_to_nearest_adult),
-  min_dist = min(distance_to_nearest_adult),
-  sd_dist = sd(distance_to_nearest_adult))
-
-rm(kr)
-```
-
-### Plot
-
-```{r make a seedling to nearest adult distance summary figure}
-
-sdl.adult.dist.plot <- sdl.adult.dist.df %>% 
-  
-  mutate(site = fct_relevel(site, "RA", "LA", "TRC")) %>% 
-  
-  ggplot(aes(x = site, y= distance_to_nearest_adult, fill = site, color = site)) +
-  
-  scale_fill_manual(values = c("brown4", "burlywood3", "aquamarine3")) +
-  
-  geom_violin(color = "black", draw_quantiles = 0.5) +
-  
-  ylab("Distance (m) between seedlings\nand nearest conspecific adults") +
-  xlab(NULL) + scale_x_discrete(labels=sites) +
-  
-  theme_set(theme_bw(base_size = 11, base_family = 'Times New Roman')) + 
-  theme(legend.title = element_blank()) + theme(legend.position = "none")
-
-sdl.adult.dist.plot
-
-#ggsave(sdl.adult.dist.plot, file = "plots/seedling_adult_distances.jpg", height = 3, width = 4)
-
-# clean
-rm(sdl.adult.dist.df)
-```
-
-As we would predict, distances between seedlings and nearest adult conspecifics is much greater in the faunally-intact site relative to the other two.
 
 # Analyze Sp values
 
@@ -3304,6 +3258,5 @@ rm(seedlings2, plot1)
 ```
 
 ```{r Session Info}
-replay(package.loading.messages)
 sessionInfo()
 ```
